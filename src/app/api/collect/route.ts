@@ -1,15 +1,18 @@
 /**
- * POST /api/collect — trigger Bright Data, normalize, persist to data/*.json.
+ * /api/collect — Bright Data integration.
  *
- * Body: { type: "posts" | "reels" | "comments" | "hashtag", target: string }
- * Response: { ok: true, count, file } | { ok: false, error }
+ * POST: trigger fetch, normalize via parsePosts, persist to data/*.json.
+ *   Body: { type: "posts" | "reels" | "comments" | "hashtag", target: string }
+ *   503 when env missing (test/no-key envs never hit the post-paid API).
+ * GET:  list previously persisted files under data/ (basic browsing).
  *
- * Returns 503 when the relevant env vars are missing so test envs never hit
- * the real (post-paid) Bright Data API by accident — per CLAUDE.md forbidden
- * actions. Real calls are gated by a human-set .env.local.
+ * MVP storage = local FS (`data/`). This is intentional for local dev — see
+ * docs/STATE.md "既知の課題". Production deploy on Vercel requires migrating
+ * persistJson() to Vercel Blob / Neon (a serverless function's FS is ephemeral
+ * and largely read-only).
  */
 
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { NextResponse } from "next/server";
@@ -79,4 +82,54 @@ async function persistJson(type: CollectKind, data: unknown): Promise<string> {
   const file = path.join(dir, `${type}-${timestamp}.json`);
   await writeFile(file, JSON.stringify(data, null, 2), "utf8");
   return file;
+}
+
+export interface CollectedFile {
+  name: string;
+  type: CollectKind;
+  bytes: number;
+  mtime: string;
+}
+
+export async function GET(): Promise<NextResponse> {
+  const dir = path.join(process.cwd(), "data");
+  try {
+    const entries = await readdir(dir);
+    const collected: CollectedFile[] = [];
+    for (const name of entries) {
+      const kind = entries.length > 0 ? matchKind(name) : null;
+      if (!kind) continue;
+      const info = await stat(path.join(dir, name));
+      collected.push({
+        name,
+        type: kind,
+        bytes: info.size,
+        mtime: info.mtime.toISOString(),
+      });
+    }
+    collected.sort((a, b) => b.mtime.localeCompare(a.mtime));
+    return NextResponse.json({ ok: true, files: collected });
+  } catch (err) {
+    if (isNodeNotFound(err)) {
+      return NextResponse.json({ ok: true, files: [] });
+    }
+    const error = err instanceof Error ? err.message : "unknown error";
+    return NextResponse.json({ ok: false, error }, { status: 500 });
+  }
+}
+
+function matchKind(name: string): CollectKind | null {
+  const prefix = name.split("-")[0];
+  return CollectKindSchema.safeParse(prefix).success
+    ? (prefix as CollectKind)
+    : null;
+}
+
+function isNodeNotFound(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "code" in err &&
+    (err as { code: unknown }).code === "ENOENT"
+  );
 }

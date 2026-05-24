@@ -47,3 +47,8 @@ Append-only. Do not edit manually.
 - [2026-05-24 19:07:57] Write `src/app/(ui)/catalog/page.tsx` — https://github.com/ne231050k/DrawChart-lesson これがURLだよ
 - [2026-05-24 19:07:58] Write `src/app/(ui)/voice/page.tsx` — https://github.com/ne231050k/DrawChart-lesson これがURLだよ
 - [2026-05-24 19:12:04] Write `docs/STATE.md` — https://github.com/ne231050k/DrawChart-lesson これがURLだよ
+- [2026-05-24 20:02:00] Write `src/config/accounts.ts` — おけいAPI追加に進みましょう
+- [2026-05-24 20:02:01] Write `src/config/hashtags.ts` — おけいAPI追加に進みましょう
+- [2026-05-24 20:02:01] Write `src/app/api/collect/route.ts` — おけいAPI追加に進みましょう
+- [2026-05-24 20:02:01] Write `src/components/CollectForm.tsx` — おけいAPI追加に進みましょう
+- [2026-05-24 20:02:01] Write `src/app/(ui)/collect/page.tsx` — おけいAPI追加に進みましょう

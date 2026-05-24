@@ -1,9 +1,34 @@
+import { CollectForm } from "@/components/CollectForm";
+import { TARGET_ACCOUNTS } from "@/config/accounts";
+import { TARGET_HASHTAGS } from "@/config/hashtags";
 import { loadMockPosts } from "@/lib/fixtures";
 
+export const dynamic = "force-dynamic";
+
+interface CollectedFileEntry {
+  name: string;
+  type: string;
+  bytes: number;
+  mtime: string;
+}
+
+async function fetchCollectedFiles(): Promise<CollectedFileEntry[]> {
+  try {
+    const base = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:5050";
+    const res = await fetch(`${base}/api/collect`, { cache: "no-store" });
+    if (!res.ok) return [];
+    const data = (await res.json()) as { ok: boolean; files?: CollectedFileEntry[] };
+    return data.files ?? [];
+  } catch {
+    return [];
+  }
+}
+
 export default async function CollectPage() {
-  const posts = await loadMockPosts();
-  const accounts = Array.from(new Set(posts.map((p) => p.account)));
-  const hashtags = Array.from(new Set(posts.flatMap((p) => p.hashtags)));
+  const [mockPosts, collected] = await Promise.all([
+    loadMockPosts(),
+    fetchCollectedFiles(),
+  ]);
   const hasBrightData = Boolean(process.env.BRIGHT_DATA_API_KEY);
 
   return (
@@ -12,36 +37,49 @@ export default async function CollectPage() {
         <h1 className="display text-3xl font-bold">① 収集</h1>
         <p className="mt-2 text-[var(--color-muted)]">
           対象アカウント・ハッシュタグから Bright Data API で投稿を取得します。
-          MVP はモックフィクスチャ（{posts.length} 件）で動作確認します。
+          MVP はモックフィクスチャ（{mockPosts.length} 件）でも動作確認できます。
         </p>
       </header>
 
+      <section className="rounded-2xl border border-[var(--color-accent-soft)] bg-white p-6">
+        <div className="mb-4 flex items-baseline justify-between">
+          <h2 className="display text-lg font-bold">取得トリガ</h2>
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-medium ${
+              hasBrightData
+                ? "bg-emerald-100 text-emerald-800"
+                : "bg-yellow-100 text-yellow-800"
+            }`}
+          >
+            {hasBrightData ? "Bright Data 接続 OK" : "Bright Data 未接続 (503)"}
+          </span>
+        </div>
+        <CollectForm accounts={TARGET_ACCOUNTS} hashtags={TARGET_HASHTAGS} />
+      </section>
+
       <section className="grid gap-4 sm:grid-cols-2">
-        <Card title="対象アカウント" items={accounts} />
-        <Card title="対象ハッシュタグ" items={hashtags} />
+        <Card title="対象アカウント (config)" items={TARGET_ACCOUNTS.map((a) => `@${a.username}${a.isOwn ? " ★" : ""}`)} />
+        <Card title="対象ハッシュタグ (config)" items={TARGET_HASHTAGS} />
       </section>
 
       <section className="rounded-2xl border border-[var(--color-accent-soft)] bg-white p-6">
-        <h2 className="display text-lg font-bold">取得状況</h2>
-        <dl className="mt-4 grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
-          <Stat label="モック投稿数" value={String(posts.length)} />
-          <Stat label="reel" value={String(posts.filter((p) => p.type === "reel").length)} />
-          <Stat label="feed" value={String(posts.filter((p) => p.type === "feed").length)} />
-          <Stat label="carousel" value={String(posts.filter((p) => p.type === "carousel").length)} />
-        </dl>
-        <div className="mt-6 rounded-xl border border-dashed border-[var(--color-accent-soft)] p-4 text-sm">
-          {hasBrightData ? (
-            <>
-              <strong className="text-[var(--color-accent)]">Bright Data 接続OK。</strong>
-              実取得は <code>POST /api/collect</code> を手動でトリガしてください（後課金API、自動実行禁止）。
-            </>
-          ) : (
-            <>
-              <strong>未接続。</strong> <code>.env.local</code> に
-              <code className="mx-1">BRIGHT_DATA_API_KEY</code> と各 <code>DATASET_*</code> を設定すると有効化されます。
-            </>
-          )}
-        </div>
+        <h2 className="display text-lg font-bold">取得済みファイル</h2>
+        {collected.length === 0 ? (
+          <p className="mt-3 text-sm text-[var(--color-muted)]">
+            まだ取得していません。上のボタンを押して取得してください。
+          </p>
+        ) : (
+          <ul className="mt-4 divide-y divide-[var(--color-accent-soft)] text-sm">
+            {collected.map((f) => (
+              <li key={f.name} className="flex items-center justify-between py-2">
+                <span className="font-mono text-xs">{f.name}</span>
+                <span className="text-xs text-[var(--color-muted)]">
+                  {f.type} · {formatBytes(f.bytes)} · {f.mtime.slice(0, 16).replace("T", " ")}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
     </div>
   );
@@ -65,11 +103,8 @@ function Card({ title, items }: { title: string; items: string[] }) {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <dt className="text-xs text-[var(--color-muted)]">{label}</dt>
-      <dd className="display mt-1 text-2xl font-bold">{value}</dd>
-    </div>
-  );
+function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
 }
