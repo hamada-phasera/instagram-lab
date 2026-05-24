@@ -52,3 +52,6 @@ Append-only. Do not edit manually.
 - [2026-05-24 20:02:01] Write `src/app/api/collect/route.ts` — おけいAPI追加に進みましょう
 - [2026-05-24 20:02:01] Write `src/components/CollectForm.tsx` — おけいAPI追加に進みましょう
 - [2026-05-24 20:02:01] Write `src/app/(ui)/collect/page.tsx` — おけいAPI追加に進みましょう
+- [2026-05-24 20:20:06] Write `src/config/brand.ts` — <task-notification>
+- [2026-05-24 20:20:06] Write `src/components/CatalogAnalyzer.tsx` — <task-notification>
+- [2026-05-24 20:20:06] Write `src/app/(ui)/catalog/page.tsx` — <task-notification>
