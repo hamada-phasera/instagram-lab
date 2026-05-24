@@ -62,3 +62,12 @@ Append-only. Do not edit manually.
 - [2026-05-24 20:39:04] Edit `docs/requirements.md` — まだAPIを入れていないので手順を教えて次の候補に進みたい
 - [2026-05-24 20:39:05] Edit `docs/tasks.md` — まだAPIを入れていないので手順を教えて次の候補に進みたい
 - [2026-05-24 20:39:06] Edit `docs/STATE.md` — まだAPIを入れていないので手順を教えて次の候補に進みたい
+- [2026-05-24 20:49:18] Write `package.json` — Bright Dataを入れてない
+- [2026-05-24 20:49:19] Write `package-lock.json` — Bright Dataを入れてない
+- [2026-05-24 20:49:20] Write `src/lib/storage.ts` — Bright Dataを入れてない
+- [2026-05-24 20:49:21] Write `src/app/api/collect/route.ts` — Bright Dataを入れてない
+- [2026-05-24 20:49:22] Write `src/app/(ui)/collect/page.tsx` — Bright Dataを入れてない
+- [2026-05-24 20:49:23] Write `.env.example` — Bright Dataを入れてない
+- [2026-05-24 20:49:23] Write `.vercelignore` — Bright Dataを入れてない
+- [2026-05-24 20:49:24] Write `docs/DEPLOY.md` — Bright Dataを入れてない
+- [2026-05-24 20:49:24] Write `docs/STATE.md` — Bright Dataを入れてない

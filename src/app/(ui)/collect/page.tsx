@@ -2,32 +2,14 @@ import { CollectForm } from "@/components/CollectForm";
 import { TARGET_ACCOUNTS } from "@/config/accounts";
 import { TARGET_HASHTAGS } from "@/config/hashtags";
 import { loadMockPosts } from "@/lib/fixtures";
+import { listCollected } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
-
-interface CollectedFileEntry {
-  name: string;
-  type: string;
-  bytes: number;
-  mtime: string;
-}
-
-async function fetchCollectedFiles(): Promise<CollectedFileEntry[]> {
-  try {
-    const base = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:5050";
-    const res = await fetch(`${base}/api/collect`, { cache: "no-store" });
-    if (!res.ok) return [];
-    const data = (await res.json()) as { ok: boolean; files?: CollectedFileEntry[] };
-    return data.files ?? [];
-  } catch {
-    return [];
-  }
-}
 
 export default async function CollectPage() {
   const [mockPosts, collected] = await Promise.all([
     loadMockPosts(),
-    fetchCollectedFiles(),
+    listCollected().catch(() => []),
   ]);
   const hasBrightData = Boolean(process.env.BRIGHT_DATA_API_KEY);
 
@@ -71,10 +53,21 @@ export default async function CollectPage() {
         ) : (
           <ul className="mt-4 divide-y divide-[var(--color-accent-soft)] text-sm">
             {collected.map((f) => (
-              <li key={f.name} className="flex items-center justify-between py-2">
-                <span className="font-mono text-xs">{f.name}</span>
-                <span className="text-xs text-[var(--color-muted)]">
-                  {f.type} · {formatBytes(f.bytes)} · {f.mtime.slice(0, 16).replace("T", " ")}
+              <li key={f.name} className="flex items-center justify-between gap-3 py-2">
+                {f.url ? (
+                  <a
+                    href={f.url}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="font-mono text-xs text-[var(--color-accent)] hover:underline"
+                  >
+                    {f.name}
+                  </a>
+                ) : (
+                  <span className="font-mono text-xs">{f.name}</span>
+                )}
+                <span className="whitespace-nowrap text-xs text-[var(--color-muted)]">
+                  {kindOf(f.name)} · {formatBytes(f.bytes)} · {f.mtime.slice(0, 16).replace("T", " ")}
                 </span>
               </li>
             ))}
@@ -107,4 +100,8 @@ function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function kindOf(name: string): string {
+  return name.split("-")[0] ?? "?";
 }

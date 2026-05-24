@@ -1,24 +1,20 @@
 /**
  * /api/collect — Bright Data integration.
  *
- * POST: trigger fetch, normalize via parsePosts, persist to data/*.json.
+ * POST: trigger fetch, normalize via parsePosts, persist via storage layer.
  *   Body: { type: "posts" | "reels" | "comments" | "hashtag", target: string }
  *   503 when env missing (test/no-key envs never hit the post-paid API).
- * GET:  list previously persisted files under data/ (basic browsing).
+ * GET:  list previously persisted files (Vercel Blob in prod, local FS in dev).
  *
- * MVP storage = local FS (`data/`). This is intentional for local dev — see
- * docs/STATE.md "既知の課題". Production deploy on Vercel requires migrating
- * persistJson() to Vercel Blob / Neon (a serverless function's FS is ephemeral
- * and largely read-only).
+ * Storage is delegated to `src/lib/storage.ts` which picks Vercel Blob when
+ * `BLOB_READ_WRITE_TOKEN` is set, otherwise falls back to local `data/*.json`.
  */
-
-import { mkdir, readdir, stat, writeFile } from "node:fs/promises";
-import path from "node:path";
 
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { BrightDataError, fetchDataset, parsePosts } from "@/lib/brightdata";
+import { listCollected, persistJson, type StoredFile } from "@/lib/storage";
 
 export const runtime = "nodejs";
 
@@ -58,8 +54,13 @@ export async function POST(req: Request): Promise<NextResponse> {
   try {
     const raw = await fetchDataset({ datasetId, payload: { target } });
     const posts = parsePosts(raw);
-    const file = await persistJson(type, posts);
-    return NextResponse.json({ ok: true, count: posts.length, file });
+    const stored = await persistJson(type, posts);
+    return NextResponse.json({
+      ok: true,
+      count: posts.length,
+      file: stored.location,
+      name: stored.name,
+    });
   } catch (err) {
     const status = err instanceof BrightDataError ? 502 : 500;
     const error = err instanceof Error ? err.message : "unknown error";
@@ -75,44 +76,19 @@ async function safeJson(req: Request): Promise<unknown> {
   }
 }
 
-async function persistJson(type: CollectKind, data: unknown): Promise<string> {
-  const dir = path.join(process.cwd(), "data");
-  await mkdir(dir, { recursive: true });
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const file = path.join(dir, `${type}-${timestamp}.json`);
-  await writeFile(file, JSON.stringify(data, null, 2), "utf8");
-  return file;
-}
-
-export interface CollectedFile {
-  name: string;
-  type: CollectKind;
-  bytes: number;
-  mtime: string;
+export interface CollectedFileEntry extends StoredFile {
+  type: CollectKind | "unknown";
 }
 
 export async function GET(): Promise<NextResponse> {
-  const dir = path.join(process.cwd(), "data");
   try {
-    const entries = await readdir(dir);
-    const collected: CollectedFile[] = [];
-    for (const name of entries) {
-      const kind = entries.length > 0 ? matchKind(name) : null;
-      if (!kind) continue;
-      const info = await stat(path.join(dir, name));
-      collected.push({
-        name,
-        type: kind,
-        bytes: info.size,
-        mtime: info.mtime.toISOString(),
-      });
-    }
-    collected.sort((a, b) => b.mtime.localeCompare(a.mtime));
+    const files = await listCollected();
+    const collected: CollectedFileEntry[] = files.map((f) => ({
+      ...f,
+      type: matchKind(f.name) ?? "unknown",
+    }));
     return NextResponse.json({ ok: true, files: collected });
   } catch (err) {
-    if (isNodeNotFound(err)) {
-      return NextResponse.json({ ok: true, files: [] });
-    }
     const error = err instanceof Error ? err.message : "unknown error";
     return NextResponse.json({ ok: false, error }, { status: 500 });
   }
@@ -123,13 +99,4 @@ function matchKind(name: string): CollectKind | null {
   return CollectKindSchema.safeParse(prefix).success
     ? (prefix as CollectKind)
     : null;
-}
-
-function isNodeNotFound(err: unknown): boolean {
-  return (
-    typeof err === "object" &&
-    err !== null &&
-    "code" in err &&
-    (err as { code: unknown }).code === "ENOENT"
-  );
 }

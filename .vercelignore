@@ -1,0 +1,6 @@
+data/
+test-results.json
+coverage/
+docs/EDIT_LOG.md
+.claude/
+scripts/log-edit.sh
