@@ -1,0 +1,90 @@
+[
+  {
+    "account": "frijoles_tokyo",
+    "followers": 12000,
+    "type": "reel",
+    "likes": 8200,
+    "comments": 340,
+    "views": 60000,
+    "caption": "知らないと損する高タンパクサラダの組み方 #ランチ #サラダ #タンパク質",
+    "hashtags": ["#ランチ", "#サラダ", "#タンパク質"],
+    "date": "2026-05-10",
+    "post_url": "https://www.instagram.com/p/AAA111/",
+    "thumbnail_url": "https://scontent.cdninstagram.com/v/aaa111.jpg",
+    "comment_texts": ["美味しそう！", "今度行きます", "保存しました"]
+  },
+  {
+    "account": "frijoles_tokyo",
+    "followers": 12000,
+    "type": "reel",
+    "likes": 1200,
+    "comments": 45,
+    "views": 18000,
+    "caption": "今週のランチメニュー紹介 #ランチ #日替わり",
+    "hashtags": ["#ランチ", "#日替わり"],
+    "date": "2026-05-12",
+    "post_url": "https://www.instagram.com/p/AAA112/",
+    "thumbnail_url": "https://scontent.cdninstagram.com/v/aaa112.jpg"
+  },
+  {
+    "account": "frijoles_tokyo",
+    "followers": 12000,
+    "type": "feed",
+    "likes": 980,
+    "comments": 22,
+    "caption": "本日のキヌアサラダ #サラダ #ヘルシー",
+    "hashtags": ["#サラダ", "#ヘルシー"],
+    "date": "2026-05-14",
+    "post_url": "https://www.instagram.com/p/AAA113/",
+    "thumbnail_url": "https://scontent.cdninstagram.com/v/aaa113.jpg"
+  },
+  {
+    "account": "frijoles_tokyo",
+    "followers": 12000,
+    "type": "carousel",
+    "likes": 1500,
+    "comments": 60,
+    "caption": "サラダボウル6種食べ比べ #サラダ #カルテット",
+    "hashtags": ["#サラダ", "#食べ比べ"],
+    "date": "2026-05-16",
+    "post_url": "https://www.instagram.com/p/AAA114/",
+    "thumbnail_url": "https://scontent.cdninstagram.com/v/aaa114.jpg"
+  },
+  {
+    "account": "veggie_cafe_jp",
+    "followers": 35000,
+    "type": "feed",
+    "likes": 4200,
+    "comments": 110,
+    "caption": "新作のグレインボウル #ランチ #ヴィーガン",
+    "hashtags": ["#ランチ", "#ヴィーガン"],
+    "date": "2026-05-11",
+    "post_url": "https://www.instagram.com/p/BBB111/",
+    "thumbnail_url": "https://scontent.cdninstagram.com/v/bbb111.jpg"
+  },
+  {
+    "account": "veggie_cafe_jp",
+    "followers": 35000,
+    "type": "reel",
+    "likes": 5800,
+    "comments": 210,
+    "views": 95000,
+    "caption": "5分で作れる高タンパク朝ごはん #タンパク質 #朝食",
+    "hashtags": ["#タンパク質", "#朝食"],
+    "date": "2026-05-13",
+    "post_url": "https://www.instagram.com/p/BBB112/",
+    "thumbnail_url": "https://scontent.cdninstagram.com/v/bbb112.jpg"
+  },
+  {
+    "account": "salad_lab_osaka",
+    "followers": 8000,
+    "type": "feed",
+    "likes": 540,
+    "comments": 18,
+    "caption": "夏野菜のグリルサラダ #サラダ #夏野菜",
+    "hashtags": ["#サラダ", "#夏野菜"],
+    "date": "2026-05-15",
+    "post_url": "https://www.instagram.com/p/CCC111/",
+    "thumbnail_url": "https://scontent.cdninstagram.com/v/ccc111.jpg"
+  }
+]

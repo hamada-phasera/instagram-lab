@@ -22,3 +22,19 @@ Append-only. Do not edit manually.
 - [2026-05-24 14:41:41] Write `tests/setup.ts` — Base directory for this skill: /Users/hamadahiromu/.cache/plugins/github.com-ver
 - [2026-05-24 14:41:41] Write `.gitignore` — Base directory for this skill: /Users/hamadahiromu/.cache/plugins/github.com-ver
 - [2026-05-24 14:41:41] Write `.env.example` — Base directory for this skill: /Users/hamadahiromu/.cache/plugins/github.com-ver
+- [2026-05-24 14:54:52] Write `src/types/post.ts` — Base directory for this skill: /Users/hamadahiromu/.cache/plugins/github.com-ver
+- [2026-05-24 14:54:52] Write `src/lib/brightdata.ts` — Base directory for this skill: /Users/hamadahiromu/.cache/plugins/github.com-ver
+- [2026-05-24 14:54:52] Write `src/app/api/collect/route.ts` — 登録した
+- [2026-05-24 14:54:53] Write `tests/mocks/posts.json` — 登録した
+- [2026-05-24 14:54:54] Write `tests/unit/brightdata.test.ts` — 登録した
+- [2026-05-24 14:54:54] Write `src/config/thresholds.ts` — 登録した
+- [2026-05-24 14:54:54] Write `src/lib/scoring.ts` — 登録した
+- [2026-05-24 14:54:55] Write `src/lib/taxonomy.ts` — 登録した
+- [2026-05-24 14:54:56] Write `tests/unit/scoring.test.ts` — 登録した
+- [2026-05-24 14:54:58] Write `src/lib/prompts/voice.ts` — 登録した
+- [2026-05-24 14:54:58] Write `src/lib/prompts/catalog.ts` — 登録した
+- [2026-05-24 14:54:58] Write `src/lib/claude.ts` — 登録した
+- [2026-05-24 14:54:58] Write `src/app/api/analyze/route.ts` — 登録した
+- [2026-05-24 14:54:59] Write `tests/unit/claude.test.ts` — 登録した
+- [2026-05-24 14:56:22] Edit `src/lib/scoring.ts` — Base directory for this skill: /Users/hamadahiromu/.cache/plugins/github.com-ver
+- [2026-05-24 14:56:22] Write `docs/STATE.md` — Base directory for this skill: /Users/hamadahiromu/.cache/plugins/github.com-ver
