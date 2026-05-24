@@ -55,3 +55,5 @@ Append-only. Do not edit manually.
 - [2026-05-24 20:20:06] Write `src/config/brand.ts` — <task-notification>
 - [2026-05-24 20:20:06] Write `src/components/CatalogAnalyzer.tsx` — <task-notification>
 - [2026-05-24 20:20:06] Write `src/app/(ui)/catalog/page.tsx` — <task-notification>
+- [2026-05-24 20:32:28] Write `src/components/VoiceAnalyzer.tsx` — <task-notification>
+- [2026-05-24 20:32:28] Write `src/app/(ui)/voice/page.tsx` — <task-notification>
