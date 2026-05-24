@@ -1,48 +1,40 @@
 # Project State — instagram-lab
 
-> 最終更新: 2026-05-24 (M4 完了 — MVP 出来)
+> 最終更新: 2026-05-24 (全 API 配線完了 + モデル ID 統一)
 > 詳細な変更履歴は [EDIT_LOG.md](EDIT_LOG.md) を参照。
 
 ## 完了済み
-- **M0 準備**: スケルトン + PostToolUse フック + 初期 docs（スモークテスト成功）
-- **M1 Scaffold**: Next.js 16.2.6 + React 19 + Tailwind v4、依存 473 パッケージ
-- **M2 データ層** (subagent 並列):
-  - `src/types/post.ts` / `src/lib/brightdata.ts` (Zod + `BrightDataError`) / `src/app/api/collect/route.ts`
-  - `tests/mocks/posts.json` 7件 / `tests/unit/brightdata.test.ts` 7 tests
-- **M3 スコアリング** (subagent 並列):
-  - `src/config/thresholds.ts` / `src/lib/scoring.ts` / `src/lib/taxonomy.ts`
-  - `tests/unit/scoring.test.ts` 19 tests
-- **M5 Claude統合** (subagent 並列):
-  - `src/lib/prompts/{voice,catalog}.ts` / `src/lib/claude.ts` (`cache_control: ephemeral`) / `src/app/api/analyze/route.ts`
-  - `tests/unit/claude.test.ts` 8 tests
-- **合流**: `scoring.ts` を `@/types/post` の re-export に統合、34 tests 通過、build 通過
-- **M4 UI** (直列):
-  - `src/components/TabNav.tsx` (active 状態 + sticky) / `src/components/PostCard.tsx`
-  - `src/app/(ui)/layout.tsx` (共通レイアウト)
-  - 4タブページ: `(ui)/{collect,breakout,catalog,voice}/page.tsx`
-  - `src/lib/fixtures.ts` (モック投稿読込ヘルパ)
-  - agent-browser で 4 ルート全動作確認 (/breakout はスクリーンショット保存済)
+- **M0 準備**: スケルトン + PostToolUse フック + 初期 docs
+- **M1 Scaffold**: Next.js 16.2.6 + React 19 + Tailwind v4
+- **M2 データ層**: BrightData クライアント + Zod パーサー + `/api/collect` POST
+- **M3 スコアリング**: 純関数 + tax taxonomy + 19 tests
+- **M5 Claude統合**: SDK wrapper + プロンプト + `/api/analyze` POST
+- **M4 UI**: 4タブ (collect/breakout/catalog/voice) + TabNav + PostCard
+- **/collect 配線**: `src/config/{accounts,hashtags}.ts` 外出し + `CollectForm` (Posts/Reels/Comments/Hashtag 4ボタン) + `/api/collect` GET (取得済みファイル一覧) + 接続状態バッジ
+- **/catalog 配線**: `src/config/brand.ts` + `CatalogAnalyzer` (dynamic 5×5 matrix が分析後に埋まる) + per-post 分析/再分析ボタン
+- **/voice 配線**: `VoiceAnalyzer` (per-post コメント分析) + surface_needs / latent_desires (要検証バッジ) / content_implications
+- **モデル ID 統一**: 全箇所 `claude-sonnet-4-6` (現行最新 Sonnet) に統一
 
 ## 進行中
-- なし（MVP 完成）
+- なし（次タスク待ち）
 
 ## 次のマイルストーン候補（優先度順）
-1. **実 API 接続**: `.env.local` に Bright Data / Anthropic キー設定 → `/collect` ボタンに実トリガ実装
-2. **`data/*.json` の Vercel Blob / Neon 移行**: serverless 環境で動作させる
-3. **`/api/analyze` の UI 統合**: catalog ページの＋ボタンから Claude vision を実行
-4. **コメント取得 API**: Bright Data の comments エンドポイント呼び出し → voice タブで実分析
-5. **モデル ID 統一**: requirements/CLAUDE.md は `claude-sonnet-4-7`、claude.ts は `claude-sonnet-4-5`。どちらかに統一
+1. **実 API テスト**: `.env.local` 設定後、Bright Data → Claude vision → Claude voice の通しを実データで確認
+2. **Vercel デプロイ準備**: `data/*.json` のローカル FS 書き込みを Vercel Blob / Neon に移行（serverless 環境対応）
+3. **Bright Data alias マッピング調整**: `src/lib/brightdata.ts:parsePosts` の field alias を実レスポンス見て再調整
+4. **取得 → 自動スコア → 自動分析のパイプライン化**: 1ボタンで全工程
 
 ## 既知の課題・懸念
-- `src/app/api/collect/route.ts` はローカル FS 書込み → Vercel serverless で動かない（MVP 想定では問題なし）
+- `src/app/api/collect/route.ts` はローカル FS に書き込み → Vercel serverless で動かない（次の課題で解消予定）
 - フックは現セッション（cwd=parent）からは自動発火せず、手動 backfill で対応中。次回 `cd instagram-lab && claude` から起動すれば自動発火する
-- EDIT_LOG の "context" 欄は別プロジェクトの transcript jsonl を拾うことがある（無害だが見た目が混乱する）
-- Bright Data 実レスポンス未確認のため `parsePosts` の alias マッピングは推測ベース（実取得後に調整）
+- EDIT_LOG の "context" 欄は別プロジェクトの transcript jsonl を拾うことがある（無害）
+- 投稿 `thumbnail_url` が fixture では fake なので Claude vision は実画像を取得できずエラーになる可能性。実 Bright Data 取得後に再試行
 
 ## 環境・依存
 - 必要 env: `BRIGHT_DATA_API_KEY`, `BRIGHT_DATA_DATASET_{POSTS,REELS,COMMENTS,HASHTAG}`, `ANTHROPIC_API_KEY`
 - パッケージマネージャ: npm (10.9.2) / Node 22.16
-- Dev サーバ: `npm run dev` → port 3000 (3001 fallback)
+- Dev サーバ: `npm run dev -- -p 5050` (3000/4000 占有環境のため 5050 を使用)
+- model id: `claude-sonnet-4-6`
 
 ---
 

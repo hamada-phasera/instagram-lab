@@ -73,7 +73,7 @@
   - `analyzeVoice(comments: string[]): Promise<VoiceAnalysis>`
   - `analyzeCatalog(post: {caption, thumbnail_url}, brandName: string): Promise<CatalogAnalysis>`
   - system プロンプトに `cache_control: {type: "ephemeral"}` 必須
-  - model: `claude-sonnet-4-7`
+  - model: `claude-sonnet-4-6`
 - [ ] `src/app/api/analyze/route.ts`: POST で `{mode: "voice"|"catalog", payload}` を受け、claude.ts に委譲
 - [ ] `tests/unit/claude.test.ts`: `@anthropic-ai/sdk` を `vi.mock()` してプロンプト組立と返値パースを検証
 - [ ] **Anthropic 実呼び出し禁止**（全てモック）

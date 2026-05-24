@@ -14,7 +14,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { buildCatalogPrompt, CATALOG_SYSTEM } from "./prompts/catalog";
 import { buildVoicePrompt, VOICE_SYSTEM } from "./prompts/voice";
 
-const MODEL = "claude-sonnet-4-5";
+const MODEL = "claude-sonnet-4-6";
 
 export class ClaudeAnalysisError extends Error {
   constructor(message: string, options?: { cause?: unknown }) {

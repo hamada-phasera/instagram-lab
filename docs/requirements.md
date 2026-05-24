@@ -116,7 +116,7 @@ is_breakout      = (view_ratio >= T_VIEW) || (engagement_jump >= T_JUMP)
   "brand_translation":"これを {brand_name} の制作に翻訳した具体案（1-2文、brand_name は実行時引数）"
 }
 ```
-- model: `claude-sonnet-4-7`（最新Sonnet）。サーバー側で `ANTHROPIC_API_KEY` 使用。
+- model: `claude-sonnet-4-6`（現行最新Sonnet）。サーバー側で `ANTHROPIC_API_KEY` 使用。
 - system プロンプトに ephemeral cache を設定（プロンプトキャッシュ必須）。
 
 ---

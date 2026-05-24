@@ -57,3 +57,8 @@ Append-only. Do not edit manually.
 - [2026-05-24 20:20:06] Write `src/app/(ui)/catalog/page.tsx` — <task-notification>
 - [2026-05-24 20:32:28] Write `src/components/VoiceAnalyzer.tsx` — <task-notification>
 - [2026-05-24 20:32:28] Write `src/app/(ui)/voice/page.tsx` — <task-notification>
+- [2026-05-24 20:39:04] Edit `src/lib/claude.ts` — まだAPIを入れていないので手順を教えて次の候補に進みたい
+- [2026-05-24 20:39:04] Edit `tests/unit/claude.test.ts` — まだAPIを入れていないので手順を教えて次の候補に進みたい
+- [2026-05-24 20:39:04] Edit `docs/requirements.md` — まだAPIを入れていないので手順を教えて次の候補に進みたい
+- [2026-05-24 20:39:05] Edit `docs/tasks.md` — まだAPIを入れていないので手順を教えて次の候補に進みたい
+- [2026-05-24 20:39:06] Edit `docs/STATE.md` — まだAPIを入れていないので手順を教えて次の候補に進みたい

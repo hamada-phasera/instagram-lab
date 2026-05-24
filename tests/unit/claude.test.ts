@@ -98,7 +98,7 @@ describe("analyzeVoice", () => {
 
     expect(result).toEqual(payload);
     const args = lastArgs();
-    expect(args.model).toBe("claude-sonnet-4-5");
+    expect(args.model).toBe("claude-sonnet-4-6");
     expect(args.max_tokens).toBe(2000);
     expect(args.system).toEqual([
       {
@@ -151,7 +151,7 @@ describe("analyzeCatalog", () => {
 
     expect(result).toEqual(payload);
     const args = lastArgs();
-    expect(args.model).toBe("claude-sonnet-4-5");
+    expect(args.model).toBe("claude-sonnet-4-6");
     expect(args.max_tokens).toBe(1000);
     expect(args.system).toEqual([
       {
