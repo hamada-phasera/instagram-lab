@@ -1,0 +1,31 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# next.js
+.next/
+out/
+build/
+
+# production
+dist/
+
+# env
+.env
+.env*.local
+!.env.example
+
+# cache
+data/
+.cache/
+
+# test
+coverage/
+test-results.json
+
+# misc
+.DS_Store
+*.log
+.vscode/
+.idea/

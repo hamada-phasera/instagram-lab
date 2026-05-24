@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #faf7f2;
+  --color-fg: #1c1b1a;
+  --color-accent: #c9472a;
+  --color-accent-soft: #efe2d8;
+  --color-muted: #6b6864;
+  --font-display: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", system-ui, sans-serif;
+  --font-body: "Zen Kaku Gothic New", "Hiragino Kaku Gothic ProN", system-ui, sans-serif;
+}
+
+html, body {
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, .display {
+  font-family: var(--font-display);
+  letter-spacing: 0.01em;
+}
