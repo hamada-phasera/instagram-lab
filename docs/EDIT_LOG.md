@@ -38,3 +38,12 @@ Append-only. Do not edit manually.
 - [2026-05-24 14:54:59] Write `tests/unit/claude.test.ts` — 登録した
 - [2026-05-24 14:56:22] Edit `src/lib/scoring.ts` — Base directory for this skill: /Users/hamadahiromu/.cache/plugins/github.com-ver
 - [2026-05-24 14:56:22] Write `docs/STATE.md` — Base directory for this skill: /Users/hamadahiromu/.cache/plugins/github.com-ver
+- [2026-05-24 19:07:55] Write `src/components/TabNav.tsx` — https://github.com/ne231050k/DrawChart-lesson これがURLだよ
+- [2026-05-24 19:07:55] Write `src/components/PostCard.tsx` — https://github.com/ne231050k/DrawChart-lesson これがURLだよ
+- [2026-05-24 19:07:56] Write `src/app/(ui)/layout.tsx` — https://github.com/ne231050k/DrawChart-lesson これがURLだよ
+- [2026-05-24 19:07:56] Write `src/lib/fixtures.ts` — https://github.com/ne231050k/DrawChart-lesson これがURLだよ
+- [2026-05-24 19:07:56] Write `src/app/(ui)/collect/page.tsx` — https://github.com/ne231050k/DrawChart-lesson これがURLだよ
+- [2026-05-24 19:07:57] Write `src/app/(ui)/breakout/page.tsx` — https://github.com/ne231050k/DrawChart-lesson これがURLだよ
+- [2026-05-24 19:07:57] Write `src/app/(ui)/catalog/page.tsx` — https://github.com/ne231050k/DrawChart-lesson これがURLだよ
+- [2026-05-24 19:07:58] Write `src/app/(ui)/voice/page.tsx` — https://github.com/ne231050k/DrawChart-lesson これがURLだよ
+- [2026-05-24 19:12:04] Write `docs/STATE.md` — https://github.com/ne231050k/DrawChart-lesson これがURLだよ
