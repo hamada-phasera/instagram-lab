@@ -155,13 +155,10 @@ function matchKind(name: string): CollectKind | "trending" | null {
     : null;
 }
 
-function buildInput(type: CollectKind, target: string, numOfPosts: number): unknown {
+function buildInput(type: CollectKind, target: string, _numOfPosts: number): unknown {
   const base = "https://www.instagram.com";
   switch (type) {
-    case "discover": {
-      const url = `${base}/${target.replace(/^@/, "")}/`;
-      return { input: [{ url, num_of_posts: numOfPosts }] };
-    }
+    case "discover":
     case "posts":
     case "reels":
     case "comments":

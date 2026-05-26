@@ -176,6 +176,29 @@ export function parsePosts(raw: unknown): Post[] {
   const items = extractArray(raw);
   const out: Post[] = [];
   for (const item of items) {
+    // "Instagram - Profiles" scraper returns profile-level entries with a
+    // nested `posts: [...]` array. Flatten each post and merge parent
+    // profile metadata (account, followers, profile_image) onto it.
+    if (
+      item &&
+      typeof item === "object" &&
+      Array.isArray((item as Record<string, unknown>).posts)
+    ) {
+      const profile = item as Record<string, unknown>;
+      const profileMeta: Record<string, unknown> = {
+        user_posted: profile.account ?? profile.profile_name,
+        followers: profile.followers,
+      };
+      for (const post of profile.posts as unknown[]) {
+        if (!post || typeof post !== "object") continue;
+        const merged = { ...profileMeta, ...(post as Record<string, unknown>) };
+        const normalized = normalizeRawPost(merged);
+        if (!normalized) continue;
+        const parsed = PostSchema.safeParse(normalized);
+        if (parsed.success) out.push(parsed.data);
+      }
+      continue;
+    }
     const normalized = normalizeRawPost(item);
     if (!normalized) continue;
     const parsed = PostSchema.safeParse(normalized);
@@ -203,7 +226,7 @@ function normalizeRawPost(item: unknown): Record<string, unknown> | null {
   const type = coerceMediaType(r.content_type ?? r.type ?? r.product_type ?? r.media_type);
   if (!type) return null;
   const caption = (r.description ?? r.caption ?? "") as string;
-  const dateRaw = r.date_posted ?? r.date ?? r.taken_at_date;
+  const dateRaw = r.datetime ?? r.date_posted ?? r.date ?? r.taken_at_date;
   return {
     account: r.user_posted ?? r.account ?? r.username ?? r.owner_username,
     followers: toNumber(r.followers ?? r.followers_count ?? r.owner_followers),
@@ -212,11 +235,11 @@ function normalizeRawPost(item: unknown): Record<string, unknown> | null {
     comments: toNumber(r.num_comments ?? r.comments ?? r.comments_count),
     views: pickViews(r),
     caption,
-    hashtags: extractHashtags(r.hashtags, caption),
+    hashtags: extractHashtags(r.post_hashtags ?? r.hashtags, caption),
     date: normalizeDate(dateRaw),
     date_iso: normalizeDateIso(dateRaw),
     post_url: r.url ?? r.post_url,
-    thumbnail_url: r.thumbnail ?? r.thumbnail_url ?? r.display_url,
+    thumbnail_url: r.image_url ?? r.thumbnail ?? r.thumbnail_url ?? r.display_url,
     comment_texts: Array.isArray(r.comment_texts) ? r.comment_texts : undefined,
   };
 }

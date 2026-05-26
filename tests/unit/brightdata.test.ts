@@ -138,6 +138,52 @@ describe("parsePosts", () => {
     expect(extractSnapshotId({ foo: "bar" })).toBeNull();
   });
 
+  it("flattens Instagram-Profiles response shape (profile.posts → Post[])", () => {
+    const raw = [
+      {
+        account: "foodandwine",
+        followers: 4071494,
+        profile_image_link: "https://example.com/p.jpg",
+        posts: [
+          {
+            url: "https://www.instagram.com/p/DYXTduvDZCf",
+            caption: "Tasty bowl",
+            content_type: "Image",
+            datetime: "2026-05-15T16:05:33.000Z",
+            likes: 432,
+            comments: 14,
+            image_url: "https://example.com/i1.jpg",
+            post_hashtags: null,
+            video_url: null,
+          },
+          {
+            url: "https://www.instagram.com/reel/ABC",
+            caption: "Reel ride",
+            content_type: "Video",
+            datetime: "2026-05-20T10:00:00.000Z",
+            likes: 1000,
+            comments: 50,
+            image_url: "https://example.com/i2.jpg",
+            post_hashtags: ["#food"],
+            video_url: "https://example.com/v.mp4",
+          },
+        ],
+      },
+    ];
+    const posts = parsePosts(raw);
+    expect(posts).toHaveLength(2);
+    const reel = posts.find((p) => p.type === "reel")!;
+    expect(reel.account).toBe("foodandwine");
+    expect(reel.followers).toBe(4071494);
+    expect(reel.likes).toBe(1000);
+    expect(reel.comments).toBe(50);
+    expect(reel.date).toBe("2026-05-20");
+    expect(reel.date_iso).toBe("2026-05-20T10:00:00.000Z");
+    expect(reel.hashtags).toEqual(["#food"]);
+    const feed = posts.find((p) => p.type === "feed")!;
+    expect(feed.thumbnail_url).toBe("https://example.com/i1.jpg");
+  });
+
   it("normalizes real Bright Data output (content_type / user_posted / num_comments / date_posted ISO / hashtags=null)", async () => {
     const raw = JSON.parse(await readFile(BRIGHT_DATA_POSTS_PATH, "utf8"));
     const posts = parsePosts(raw);

@@ -126,11 +126,18 @@ export function CollectForm({ genres }: CollectFormProps) {
       </div>
 
       {seedStates.length > 0 && (
-        <ul className="space-y-1 rounded-xl border border-[var(--color-accent-soft)] bg-white p-3 text-sm">
+        <ul className="space-y-2 rounded-xl border border-[var(--color-accent-soft)] bg-white p-3 text-sm">
           {seedStates.map((s) => (
-            <li key={s.account} className="flex items-center justify-between gap-3 py-1">
-              <span className="font-mono text-xs">@{s.account}</span>
-              <StatusBadge state={s} />
+            <li key={s.account} className="space-y-1 py-1">
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-mono text-xs">@{s.account}</span>
+                <StatusBadge state={s} />
+              </div>
+              {s.status === "error" && s.error && (
+                <pre className="ml-2 max-h-32 overflow-auto whitespace-pre-wrap break-all rounded-md bg-red-50 px-2 py-1 text-[11px] text-red-900">
+                  {s.error}
+                </pre>
+              )}
             </li>
           ))}
         </ul>
@@ -165,7 +172,7 @@ function StatusBadge({ state }: { state: SeedState }) {
       className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-800"
       title={state.error}
     >
-      ✕ {state.error?.slice(0, 40) ?? "error"}
+      ✕ error
     </span>
   );
 }
