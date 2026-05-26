@@ -11,13 +11,16 @@ import { z } from "zod";
 import type { MediaType, Post } from "@/types/post";
 
 const BRIGHT_DATA_BASE_URL = "https://api.brightdata.com/datasets/v3/trigger";
+const BRIGHT_DATA_PROGRESS_URL = "https://api.brightdata.com/datasets/v3/progress";
+const BRIGHT_DATA_SNAPSHOT_URL = "https://api.brightdata.com/datasets/v3/snapshot";
 
 export class BrightDataError extends Error {
   readonly status: number;
   readonly body: string;
 
   constructor(status: number, body: string, message?: string) {
-    super(message ?? `Bright Data request failed (${status})`);
+    const detail = body ? ` — ${body.slice(0, 500)}` : "";
+    super(message ?? `Bright Data request failed (${status})${detail}`);
     this.name = "BrightDataError";
     this.status = status;
     this.body = body;
@@ -66,6 +69,77 @@ async function safeReadBody(res: Response): Promise<string> {
   } catch {
     return "";
   }
+}
+
+/**
+ * Detect Bright Data's async `{ snapshot_id }` response shape.
+ * v3/trigger returns this; caller must poll progress then fetch snapshot.
+ */
+export function extractSnapshotId(raw: unknown): string | null {
+  if (!raw || typeof raw !== "object") return null;
+  const id = (raw as Record<string, unknown>).snapshot_id;
+  return typeof id === "string" && id.length > 0 ? id : null;
+}
+
+export interface PollSnapshotOptions {
+  intervalMs?: number;
+  maxAttempts?: number;
+  apiKey?: string;
+}
+
+/**
+ * Poll progress until "ready", then fetch and return the snapshot JSON.
+ * Throws {@link BrightDataError} on failure / non-2xx / non-terminal exhaustion.
+ */
+export async function pollSnapshot(
+  snapshotId: string,
+  opts: PollSnapshotOptions = {},
+): Promise<unknown> {
+  const apiKey = opts.apiKey ?? process.env.BRIGHT_DATA_API_KEY;
+  if (!apiKey) {
+    throw new BrightDataError(0, "", "BRIGHT_DATA_API_KEY is not set");
+  }
+  const intervalMs = opts.intervalMs ?? 5_000;
+  const maxAttempts = opts.maxAttempts ?? 60;
+  const auth = { Authorization: `Bearer ${apiKey}` };
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const res = await fetch(
+      `${BRIGHT_DATA_PROGRESS_URL}/${encodeURIComponent(snapshotId)}`,
+      { headers: auth },
+    );
+    if (!res.ok) {
+      const body = await safeReadBody(res);
+      throw new BrightDataError(res.status, body);
+    }
+    const progress = (await res.json()) as { status?: string };
+    if (progress.status === "ready") break;
+    if (progress.status === "failed") {
+      throw new BrightDataError(0, JSON.stringify(progress), "snapshot failed");
+    }
+    if (attempt === maxAttempts - 1) {
+      throw new BrightDataError(
+        0,
+        JSON.stringify(progress),
+        `snapshot still ${progress.status ?? "pending"} after ${maxAttempts} attempts`,
+      );
+    }
+    await sleep(intervalMs);
+  }
+
+  const snapRes = await fetch(
+    `${BRIGHT_DATA_SNAPSHOT_URL}/${encodeURIComponent(snapshotId)}?format=json`,
+    { headers: auth },
+  );
+  if (!snapRes.ok) {
+    const body = await safeReadBody(snapRes);
+    throw new BrightDataError(snapRes.status, body);
+  }
+  return (await snapRes.json()) as unknown;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
 }
 
 /**
@@ -123,30 +197,51 @@ function extractArray(raw: unknown): unknown[] {
 function normalizeRawPost(item: unknown): Record<string, unknown> | null {
   if (!item || typeof item !== "object") return null;
   const r = item as Record<string, unknown>;
-  const type = coerceMediaType(r.type ?? r.product_type ?? r.media_type);
+  const type = coerceMediaType(r.content_type ?? r.type ?? r.product_type ?? r.media_type);
   if (!type) return null;
+  const caption = (r.description ?? r.caption ?? "") as string;
   return {
-    account: r.account ?? r.username ?? r.owner_username,
+    account: r.user_posted ?? r.account ?? r.username ?? r.owner_username,
     followers: toNumber(r.followers ?? r.followers_count ?? r.owner_followers),
     type,
     likes: toNumber(r.likes ?? r.likes_count),
-    comments: toNumber(r.comments ?? r.comments_count),
-    views: r.views !== undefined ? toNumber(r.views) : undefined,
-    caption: r.caption ?? r.description ?? "",
-    hashtags: Array.isArray(r.hashtags) ? r.hashtags : [],
-    date: typeof r.date === "string" ? r.date : (r.taken_at_date ?? ""),
-    post_url: r.post_url ?? r.url,
-    thumbnail_url: r.thumbnail_url ?? r.display_url,
+    comments: toNumber(r.num_comments ?? r.comments ?? r.comments_count),
+    views: pickViews(r),
+    caption,
+    hashtags: extractHashtags(r.hashtags, caption),
+    date: normalizeDate(r.date_posted ?? r.date ?? r.taken_at_date),
+    post_url: r.url ?? r.post_url,
+    thumbnail_url: r.thumbnail ?? r.thumbnail_url ?? r.display_url,
     comment_texts: Array.isArray(r.comment_texts) ? r.comment_texts : undefined,
   };
 }
 
 function coerceMediaType(v: unknown): MediaType | null {
-  if (v === "reel" || v === "feed" || v === "carousel") return v;
-  if (v === "Reel" || v === "video") return "reel";
-  if (v === "Image" || v === "image") return "feed";
-  if (v === "Sidecar" || v === "sidecar") return "carousel";
+  if (typeof v !== "string") return null;
+  const lower = v.toLowerCase();
+  if (lower === "reel" || lower === "video") return "reel";
+  if (lower === "feed" || lower === "photo" || lower === "image") return "feed";
+  if (lower === "carousel" || lower === "sidecar") return "carousel";
   return null;
+}
+
+function pickViews(r: Record<string, unknown>): number | undefined {
+  const v = r.views ?? r.video_play_count ?? r.video_view_count;
+  if (v === null || v === undefined) return undefined;
+  return toNumber(v);
+}
+
+function extractHashtags(raw: unknown, caption: string): string[] {
+  if (Array.isArray(raw)) return raw.map(String);
+  const found = caption.match(/#\S+/g);
+  return found ?? [];
+}
+
+function normalizeDate(d: unknown): string {
+  if (typeof d !== "string") return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+  const m = d.match(/^(\d{4}-\d{2}-\d{2})/);
+  return m ? m[1] : "";
 }
 
 function toNumber(v: unknown): number {

@@ -13,10 +13,17 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { BrightDataError, fetchDataset, parsePosts } from "@/lib/brightdata";
+import {
+  BrightDataError,
+  extractSnapshotId,
+  fetchDataset,
+  parsePosts,
+  pollSnapshot,
+} from "@/lib/brightdata";
 import { listCollected, persistJson, type StoredFile } from "@/lib/storage";
 
 export const runtime = "nodejs";
+export const maxDuration = 300;
 
 const CollectKindSchema = z.enum(["posts", "reels", "comments", "hashtag"]);
 const RequestSchema = z.object({
@@ -52,14 +59,26 @@ export async function POST(req: Request): Promise<NextResponse> {
   }
 
   try {
-    const raw = await fetchDataset({ datasetId, payload: { target } });
+    const triggerRes = await fetchDataset({
+      datasetId,
+      payload: buildInput(type, target),
+    });
+    const snapshotId = extractSnapshotId(triggerRes);
+    const raw = snapshotId ? await pollSnapshot(snapshotId) : triggerRes;
     const posts = parsePosts(raw);
     const stored = await persistJson(type, posts);
+    let rawLocation: string | undefined;
+    if (posts.length === 0) {
+      const rawStored = await persistJson(`${type}-raw`, raw);
+      rawLocation = rawStored.location;
+    }
     return NextResponse.json({
       ok: true,
       count: posts.length,
       file: stored.location,
       name: stored.name,
+      ...(snapshotId ? { snapshot_id: snapshotId } : {}),
+      ...(rawLocation ? { raw: rawLocation } : {}),
     });
   } catch (err) {
     const status = err instanceof BrightDataError ? 502 : 500;
@@ -99,4 +118,16 @@ function matchKind(name: string): CollectKind | null {
   return CollectKindSchema.safeParse(prefix).success
     ? (prefix as CollectKind)
     : null;
+}
+
+function buildInput(type: CollectKind, target: string): unknown[] {
+  const base = "https://www.instagram.com";
+  switch (type) {
+    case "posts":
+    case "reels":
+    case "comments":
+      return [{ url: `${base}/${target.replace(/^@/, "")}/` }];
+    case "hashtag":
+      return [{ url: `${base}/explore/tags/${target.replace(/^#/, "")}/` }];
+  }
 }

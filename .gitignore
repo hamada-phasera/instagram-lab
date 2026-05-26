@@ -29,3 +29,6 @@ test-results.json
 *.log
 .vscode/
 .idea/
+
+# typescript incremental build cache
+tsconfig.tsbuildinfo

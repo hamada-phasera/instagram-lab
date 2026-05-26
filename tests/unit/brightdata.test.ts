@@ -5,13 +5,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   BrightDataError,
+  extractSnapshotId,
   fetchDataset,
   parsePosts,
+  pollSnapshot,
 } from "@/lib/brightdata";
 
 const MOCK_POSTS_PATH = path.join(
   process.cwd(),
   "tests/mocks/posts.json",
+);
+const BRIGHT_DATA_POSTS_PATH = path.join(
+  process.cwd(),
+  "tests/mocks/posts_bright_data.json",
 );
 
 function jsonResponse(status: number, body: unknown): Response {
@@ -122,5 +128,87 @@ describe("parsePosts", () => {
     expect(parsePosts(null)).toEqual([]);
     expect(parsePosts(42)).toEqual([]);
     expect(parsePosts({ foo: "bar" })).toEqual([]);
+  });
+
+  it("extractSnapshotId picks snapshot_id from trigger response", () => {
+    expect(extractSnapshotId({ snapshot_id: "sd_abc" })).toBe("sd_abc");
+    expect(extractSnapshotId({ snapshot_id: "" })).toBeNull();
+    expect(extractSnapshotId([])).toBeNull();
+    expect(extractSnapshotId(null)).toBeNull();
+    expect(extractSnapshotId({ foo: "bar" })).toBeNull();
+  });
+
+  it("normalizes real Bright Data output (content_type / user_posted / num_comments / date_posted ISO / hashtags=null)", async () => {
+    const raw = JSON.parse(await readFile(BRIGHT_DATA_POSTS_PATH, "utf8"));
+    const posts = parsePosts(raw);
+
+    expect(posts.length).toBe(3);
+
+    const reel = posts.find((p) => p.type === "reel");
+    expect(reel).toBeDefined();
+    expect(reel!.account).toBe("frijoles_tokyo");
+    expect(reel!.views).toBe(50000);
+    expect(reel!.date).toBe("2024-12-20");
+    expect(reel!.comments).toBe(10);
+
+    const carousel = posts.find((p) => p.type === "carousel");
+    expect(carousel).toBeDefined();
+    expect(carousel!.date).toBe("2024-12-18");
+    expect(carousel!.hashtags).toEqual(["#lunch", "#salad"]);
+    expect(carousel!.views).toBeUndefined();
+
+    const feed = posts.find((p) => p.type === "feed");
+    expect(feed).toBeDefined();
+    expect(feed!.account).toBe("veggie_cafe_jp");
+  });
+});
+
+describe("pollSnapshot", () => {
+  const originalApiKey = process.env.BRIGHT_DATA_API_KEY;
+
+  beforeEach(() => {
+    process.env.BRIGHT_DATA_API_KEY = "test-key";
+  });
+
+  afterEach(() => {
+    if (originalApiKey === undefined) delete process.env.BRIGHT_DATA_API_KEY;
+    else process.env.BRIGHT_DATA_API_KEY = originalApiKey;
+    vi.restoreAllMocks();
+  });
+
+  it("polls progress then fetches snapshot data when ready", async () => {
+    const expectedData = [{ user_posted: "x", followers: 1, content_type: "Photo", likes: 1, num_comments: 0, date_posted: "2024-12-18T00:00:00Z", url: "u", thumbnail: "t", description: "" }];
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(jsonResponse(200, { status: "running" }))
+      .mockResolvedValueOnce(jsonResponse(200, { status: "ready" }))
+      .mockResolvedValueOnce(jsonResponse(200, expectedData));
+
+    const data = await pollSnapshot("sd_test", { intervalMs: 0, maxAttempts: 5 });
+
+    expect(data).toEqual(expectedData);
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+    expect(String(fetchSpy.mock.calls[0][0])).toContain("/progress/sd_test");
+    expect(String(fetchSpy.mock.calls[2][0])).toContain("/snapshot/sd_test");
+  });
+
+  it("throws BrightDataError when snapshot status=failed", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      jsonResponse(200, { status: "failed", error: "scrape failed" }),
+    );
+
+    await expect(
+      pollSnapshot("sd_test", { intervalMs: 0, maxAttempts: 5 }),
+    ).rejects.toBeInstanceOf(BrightDataError);
+  });
+
+  it("throws BrightDataError when maxAttempts exhausted", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
+      jsonResponse(200, { status: "running" }),
+    );
+
+    await expect(
+      pollSnapshot("sd_test", { intervalMs: 0, maxAttempts: 2 }),
+    ).rejects.toThrow(/still running/);
   });
 });
