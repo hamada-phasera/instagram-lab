@@ -127,6 +127,7 @@ function FallbackThumbnail({ post }: { post: Trending }) {
       <img
         src={post.thumbnail_url}
         alt=""
+        referrerPolicy="no-referrer"
         className="w-full max-w-sm rounded-lg object-cover"
       />
       <p className="text-xs opacity-80">

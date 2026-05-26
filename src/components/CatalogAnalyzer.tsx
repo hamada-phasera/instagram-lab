@@ -152,6 +152,7 @@ export function CatalogAnalyzer({
                                 <img
                                   src={hit.thumbnail_url}
                                   alt=""
+                                  referrerPolicy="no-referrer"
                                   className="h-10 w-10 rounded-md object-cover"
                                 />
                               </a>
@@ -187,6 +188,7 @@ export function CatalogAnalyzer({
                   <img
                     src={c.thumbnail_url}
                     alt=""
+                    referrerPolicy="no-referrer"
                     className="h-16 w-16 flex-shrink-0 rounded-lg object-cover"
                   />
                   <div className="flex-1 min-w-0">

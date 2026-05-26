@@ -97,6 +97,7 @@ export function VoiceAnalyzer({ posts }: VoiceAnalyzerProps) {
               <img
                 src={p.thumbnail_url}
                 alt=""
+                referrerPolicy="no-referrer"
                 className="h-20 w-20 flex-shrink-0 rounded-lg object-cover"
               />
               <div className="flex-1 min-w-0">

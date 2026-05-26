@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import type { Trending } from "@/types/post";
 
 interface TrendingCardProps {
@@ -8,6 +10,7 @@ interface TrendingCardProps {
 }
 
 export function TrendingCard({ post, onClick }: TrendingCardProps) {
+  const [imgFailed, setImgFailed] = useState(false);
   return (
     <button
       type="button"
@@ -15,13 +18,19 @@ export function TrendingCard({ post, onClick }: TrendingCardProps) {
       className="group flex flex-col overflow-hidden rounded-2xl border border-[var(--color-accent-soft)] bg-white text-left transition hover:-translate-y-0.5 hover:shadow-md"
     >
       <div className="relative aspect-square overflow-hidden bg-[var(--color-accent-soft)]">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={post.thumbnail_url}
-          alt=""
-          loading="lazy"
-          className="h-full w-full object-cover transition group-hover:scale-105"
-        />
+        {imgFailed ? (
+          <ThumbPlaceholder post={post} />
+        ) : (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={post.thumbnail_url}
+            alt=""
+            loading="lazy"
+            referrerPolicy="no-referrer"
+            onError={() => setImgFailed(true)}
+            className="h-full w-full object-cover transition group-hover:scale-105"
+          />
+        )}
         <div className="absolute left-3 top-3 rounded-full bg-[var(--color-accent)] px-3 py-1 text-xs font-bold text-white">
           score {post.trend_score.toFixed(2)}
         </div>
@@ -73,4 +82,19 @@ function short(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
   return n.toLocaleString();
+}
+
+function ThumbPlaceholder({ post }: { post: Trending }) {
+  const initial = (post.account ?? "?").slice(0, 1).toUpperCase();
+  return (
+    <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-[var(--color-accent-soft)] to-white p-4 text-center">
+      <div className="display flex h-14 w-14 items-center justify-center rounded-full bg-[var(--color-accent)] text-2xl font-bold text-white">
+        {initial}
+      </div>
+      <p className="text-[10px] leading-snug text-[var(--color-muted)]">
+        サムネ未取得<br />
+        クリックで Instagram プレビュー
+      </p>
+    </div>
+  );
 }
