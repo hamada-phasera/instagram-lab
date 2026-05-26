@@ -2,9 +2,16 @@
  * /api/collect — Bright Data integration.
  *
  * POST: trigger fetch, normalize via parsePosts, persist via storage layer.
- *   Body: { type: "posts" | "reels" | "comments" | "hashtag", target: string }
+ *   Body: { type, target, genre? }
+ *     type "discover" — profile username; uses BRIGHT_DATA_DATASET_DISCOVER
+ *                       (instagram-posts-discover-by-url, gd_l1vikfch901nx3by4).
+ *                       Payload is `{ input: [{ url, num_of_posts }] }`.
+ *     type "hashtag" — legacy hashtag URL path (Bright Data has no public
+ *                       hashtag scraper; kept only for previously-collected
+ *                       data and direct experiments).
+ *     type "posts"/"reels"/"comments" — kept for backward compat / direct
+ *                                       collect-by-URL flows.
  *   503 when env missing (test/no-key envs never hit the post-paid API).
- * GET:  list previously persisted files (Vercel Blob in prod, local FS in dev).
  *
  * Storage is delegated to `src/lib/storage.ts` which picks Vercel Blob when
  * `BLOB_READ_WRITE_TOKEN` is set, otherwise falls back to local `data/*.json`.
@@ -25,12 +32,14 @@ import { listCollected, persistJson, type StoredFile } from "@/lib/storage";
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-const CollectKindSchema = z.enum(["posts", "reels", "comments", "hashtag"]);
+const CollectKindSchema = z.enum(["posts", "reels", "comments", "hashtag", "discover"]);
 const RequestSchema = z.object({
   type: CollectKindSchema,
   target: z.string().min(1),
   /** Optional genre label; when present, posts are persisted under the "trending" prefix. */
   genre: z.string().optional(),
+  /** Optional number of recent posts to discover per seed (discover only). */
+  numOfPosts: z.number().int().positive().max(200).optional(),
 });
 
 type CollectKind = z.infer<typeof CollectKindSchema>;
@@ -40,7 +49,10 @@ const DATASET_ENV: Record<CollectKind, string> = {
   reels: "BRIGHT_DATA_DATASET_REELS",
   comments: "BRIGHT_DATA_DATASET_COMMENTS",
   hashtag: "BRIGHT_DATA_DATASET_HASHTAG",
+  discover: "BRIGHT_DATA_DATASET_DISCOVER",
 };
+
+const DEFAULT_NUM_OF_POSTS = 50;
 
 export async function POST(req: Request): Promise<NextResponse> {
   const parsed = RequestSchema.safeParse(await safeJson(req));
@@ -50,7 +62,7 @@ export async function POST(req: Request): Promise<NextResponse> {
       { status: 400 },
     );
   }
-  const { type, target, genre } = parsed.data;
+  const { type, target, genre, numOfPosts } = parsed.data;
 
   const datasetId = process.env[DATASET_ENV[type]];
   if (!process.env.BRIGHT_DATA_API_KEY || !datasetId) {
@@ -60,19 +72,22 @@ export async function POST(req: Request): Promise<NextResponse> {
     );
   }
 
-  const isTrending = type === "hashtag" && Boolean(genre);
+  const isTrending = Boolean(genre) && (type === "discover" || type === "hashtag");
   const sourceHashtag = type === "hashtag" ? normalizeHashtag(target) : undefined;
+  const sourceAccount = type === "discover" ? normalizeAccount(target) : undefined;
 
   try {
     const triggerRes = await fetchDataset({
       datasetId,
-      payload: buildInput(type, target),
+      payload: buildInput(type, target, numOfPosts ?? DEFAULT_NUM_OF_POSTS),
     });
     const snapshotId = extractSnapshotId(triggerRes);
     const raw = snapshotId ? await pollSnapshot(snapshotId) : triggerRes;
-    const posts = parsePosts(raw).map((p) =>
-      sourceHashtag ? { ...p, source_hashtag: sourceHashtag } : p,
-    );
+    const posts = parsePosts(raw).map((p) => ({
+      ...p,
+      ...(sourceHashtag ? { source_hashtag: sourceHashtag } : {}),
+      ...(sourceAccount ? { source_account: sourceAccount } : {}),
+    }));
     const prefix = isTrending ? "trending" : type;
     const stored = await persistJson(prefix, posts);
     let rawLocation: string | undefined;
@@ -87,6 +102,7 @@ export async function POST(req: Request): Promise<NextResponse> {
       name: stored.name,
       ...(genre ? { genre } : {}),
       ...(sourceHashtag ? { source_hashtag: sourceHashtag } : {}),
+      ...(sourceAccount ? { source_account: sourceAccount } : {}),
       ...(snapshotId ? { snapshot_id: snapshotId } : {}),
       ...(rawLocation ? { raw: rawLocation } : {}),
     });
@@ -99,6 +115,10 @@ export async function POST(req: Request): Promise<NextResponse> {
 
 function normalizeHashtag(target: string): string {
   return target.startsWith("#") ? target : `#${target}`;
+}
+
+function normalizeAccount(target: string): string {
+  return target.replace(/^@/, "");
 }
 
 async function safeJson(req: Request): Promise<unknown> {
@@ -135,14 +155,18 @@ function matchKind(name: string): CollectKind | "trending" | null {
     : null;
 }
 
-function buildInput(type: CollectKind, target: string): unknown[] {
+function buildInput(type: CollectKind, target: string, numOfPosts: number): unknown {
   const base = "https://www.instagram.com";
   switch (type) {
+    case "discover": {
+      const url = `${base}/${target.replace(/^@/, "")}/`;
+      return { input: [{ url, num_of_posts: numOfPosts }] };
+    }
     case "posts":
     case "reels":
     case "comments":
-      return [{ url: `${base}/${target.replace(/^@/, "")}/` }];
+      return { input: [{ url: `${base}/${target.replace(/^@/, "")}/` }] };
     case "hashtag":
-      return [{ url: `${base}/explore/tags/${target.replace(/^#/, "")}/` }];
+      return { input: [{ url: `${base}/explore/tags/${target.replace(/^#/, "")}/` }] };
   }
 }

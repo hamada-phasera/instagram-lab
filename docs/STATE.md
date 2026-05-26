@@ -1,6 +1,6 @@
 # Project State — instagram-lab
 
-> 最終更新: 2026-05-26 (ジャンルトレンド一本へ完全ピボット)
+> 最終更新: 2026-05-26 (Bright Data 制約により hashtag → profile-URL discovery に再調整)
 > 詳細な変更履歴は [EDIT_LOG.md](EDIT_LOG.md) を参照。
 
 ## 完了済み
@@ -25,14 +25,14 @@
     - TabNav ラベル「② ブレイク」→「② トレンド」、ランディングページ文言更新
 
 ## 進行中
-- なし
+- **Bright Data discover-by-url dataset 接続待ち**: 公式 docs に Hashtag scraper が存在せず、`instagram-posts-discover-by-url` (gd_l1vikfch901nx3by4) に切り替え。`.env.local` に `BRIGHT_DATA_DATASET_DISCOVER` を追加する作業がユーザー側で必要。
 
 ## 次のマイルストーン候補（優先度順）
-1. **実 Bright Data Hashtag dataset 接続検証**: 1 ジャンル一括取得を 1 回実行して、`source_hashtag` injection + dedupe + trend_score が期待通り動くか実機確認
-2. **コスト UI 厳密化**: `1 ジャンル ≈ $0.10` の概算を、実 Bright Data 単価で再計算（現在は仮）
-3. **PostModal iframe の private 投稿フォールバック**を実投稿で検証
-4. **Vercel デプロイ**: `vercel link` → Blob 作成 → env 登録 → `vercel deploy --prod`
-5. **コメント取得 trigger** を `/collect` に再追加するか検討（現状は hashtag のみ）
+1. **Bright Data で `instagram-posts-discover-by-url` (gd_l1vikfch901nx3by4) を購読** → `.env.local` に `BRIGHT_DATA_DATASET_DISCOVER` を設定
+2. **1 ジャンル一括取得を 1 回実行** して、`source_account` injection + dedupe + trend_score が期待通り動くか実機確認 (~$0.10)
+3. **各ジャンルの seed accounts をプロジェクト用にカスタマイズ** ([src/config/genres.ts](src/config/genres.ts))。現在は placeholder (foodandwine / github 等)
+4. **PostModal iframe の private 投稿フォールバック**を実投稿で検証
+5. **Vercel デプロイ**: `vercel link` → Blob 作成 → env 登録 → `vercel deploy --prod`
 
 ## 既知の課題・懸念
 - Bright Data Hashtag dataset は `BRIGHT_DATA_DATASET_HASHTAG` が未設定だと 503。`.env.local` で要設定。
@@ -46,8 +46,8 @@
 - `npx tsc --noEmit`: 私の変更には型エラー 0、pre-existing 1 件のみ
 
 ## 環境・依存
-- 必要 env: `BRIGHT_DATA_API_KEY`, `BRIGHT_DATA_DATASET_HASHTAG`, `ANTHROPIC_API_KEY`, `BLOB_READ_WRITE_TOKEN` (production のみ必須)
-- `BRIGHT_DATA_DATASET_{POSTS,REELS,COMMENTS}` は UI から外したが route handler は残存（再利用余地）
+- 必要 env: `BRIGHT_DATA_API_KEY`, `BRIGHT_DATA_DATASET_DISCOVER` (`gd_l1vikfch901nx3by4`), `ANTHROPIC_API_KEY`, `BLOB_READ_WRITE_TOKEN` (production のみ必須)
+- `BRIGHT_DATA_DATASET_{POSTS,REELS,COMMENTS,HASHTAG}` は UI から外したが route handler は残存（再利用余地）
 - パッケージマネージャ: npm (10.9.2) / Node 22.16
 - Dev サーバ: `npm run dev -- -p 5050`
 - model id: `claude-sonnet-4-6`

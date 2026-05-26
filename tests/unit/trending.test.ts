@@ -172,29 +172,41 @@ describe("computeTrending", () => {
     }
   });
 
-  it("dedupes by post_url and merges source_hashtags", () => {
+  it("dedupes by post_url and merges source_accounts", () => {
     const url = "https://example.com/dup";
     const posts: Post[] = [
-      makePost({ post_url: url, likes: 100, source_hashtag: "#ランチ" }),
-      makePost({ post_url: url, likes: 200, source_hashtag: "#グルメ" }),
-      makePost({ post_url: url, likes: 50, source_hashtag: "#カフェ" }),
+      makePost({ post_url: url, likes: 100, source_account: "foodandwine" }),
+      makePost({ post_url: url, likes: 200, source_account: "bonappetitmag" }),
+      makePost({ post_url: url, likes: 50, source_account: "tasty" }),
     ];
     const out = computeTrending(posts, "飲食", { now: NOW });
     expect(out).toHaveLength(1);
     expect(out[0].likes).toBe(200);
-    expect(out[0].source_hashtags).toEqual(["#カフェ", "#グルメ", "#ランチ"]);
+    expect(out[0].source_accounts).toEqual(["bonappetitmag", "foodandwine", "tasty"]);
   });
 
-  it("uses min (best) rank when a post spans multiple hashtags", () => {
+  it("assigns genre_rank=1 to the highest-EPH post in the genre", () => {
     const posts: Post[] = [
-      makePost({ post_url: "https://example.com/a", likes: 100, source_hashtag: "#ランチ" }),
-      makePost({ post_url: "https://example.com/b", likes: 50, source_hashtag: "#ランチ" }),
-      makePost({ post_url: "https://example.com/a", likes: 100, source_hashtag: "#グルメ" }),
+      makePost({
+        post_url: "https://example.com/a",
+        likes: 1000,
+        comments: 100,
+        date_iso: "2026-05-25T06:00:00.000Z",
+        source_account: "foodandwine",
+      }),
+      makePost({
+        post_url: "https://example.com/b",
+        likes: 50,
+        comments: 5,
+        date_iso: "2026-05-25T00:00:00.000Z",
+        source_account: "tasty",
+      }),
     ];
     const out = computeTrending(posts, "飲食", { now: NOW });
-    const a = out.find((t) => t.post_url === "https://example.com/a")!;
-    expect(a.hashtag_top_rank).toBe(1);
-    expect(a.rank_weight).toBe(1);
+    const top = out[0];
+    expect(top.post_url).toBe("https://example.com/a");
+    expect(top.genre_rank).toBe(1);
+    expect(top.rank_weight).toBe(1);
   });
 
   it("handles all-zero-engagement posts without NaN", () => {

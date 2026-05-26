@@ -28,9 +28,9 @@ export function TrendingCard({ post, onClick }: TrendingCardProps) {
         <div className="absolute right-3 top-3 rounded-full bg-black/60 px-2 py-1 text-[10px] uppercase tracking-wide text-white">
           {post.type}
         </div>
-        {Number.isFinite(post.hashtag_top_rank) && post.hashtag_top_rank <= 10 && (
+        {Number.isFinite(post.genre_rank) && post.genre_rank <= 10 && (
           <div className="absolute bottom-3 left-3 rounded-full bg-white/90 px-2 py-1 text-[10px] font-bold text-[var(--color-fg)]">
-            #{post.hashtag_top_rank} in {post.source_hashtags[0] ?? "tag"}
+            #{post.genre_rank} in {post.genre}
           </div>
         )}
       </div>

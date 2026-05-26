@@ -1,18 +1,19 @@
 /**
  * Trend scoring — pure functions, no I/O.
  *
- * Replaces the per-account `scoring.ts` baseline. Trending posts are scored
- * cross-account by combining engagement velocity (EPH), reach proxy, and
- * within-hashtag rank. All metrics are proxies — "estimated trend score",
- * not a viral guarantee (see CLAUDE.md "Forbidden Actions / データ").
+ * Genre-scoped ranking. Posts are scored cross-account by combining
+ * engagement velocity (EPH), reach proxy, and within-genre rank. All
+ * metrics are proxies — "estimated trend score", not a viral guarantee
+ * (see CLAUDE.md "Forbidden Actions / データ").
  *
  * Inputs: an array of `Post` records with at least one of
  *   - `date_iso` (preferred) or `date` (`YYYY-MM-DD`)
- *   - `source_hashtag` (the hashtag the post was discovered under)
+ *   - `source_account` (the seed profile a post was discovered from) —
+ *     optional; used for display and dedupe metadata only
  *   - `followers`, `likes`, `comments`, optional `views`
  *
- * Outputs: an array of `Trending` records, one per unique `post_url`, sorted
- * by `trend_score` desc.
+ * Outputs: an array of `Trending` records, one per unique `post_url`,
+ * sorted by `trend_score` desc.
  */
 
 import type { Post, Trending } from "@/types/post";
@@ -87,21 +88,18 @@ export function percentileRank(values: number[]): number[] {
 
 interface RawAggregate {
   post: Post;
-  hashtags: Set<string>;
-  topRank: number;
+  accounts: Set<string>;
 }
 
 /**
- * Aggregate `Post[]` into trending records.
+ * Aggregate `Post[]` into trending records (genre-scoped).
  *
  * Steps:
- * 1. Dedupe by `post_url`, keeping the entry with max likes.
- *    Collect `source_hashtag` per appearance into a set.
- * 2. For each unique hashtag, rank posts by EPH and remember each post's
- *    best (lowest) rank.
- * 3. Compute EPH and reach_proxy for each post; percentile-rank them across
- *    the whole input.
- * 4. trend_score = weighted sum of pctRank(EPH), pctRank(reach), rank_weight.
+ * 1. Dedupe by `post_url`, keeping the entry with max likes. Collect
+ *    `source_account` per appearance into a set.
+ * 2. Compute EPH and reach_proxy for each post; rank by EPH within the
+ *    genre to derive `genre_rank` (1-indexed).
+ * 3. trend_score = w_eph·pctRank(EPH) + w_reach·pctRank(reach) + w_rank·rank_weight.
  *
  * @param genre - genre label embedded into every output record (UI grouping).
  */
@@ -116,37 +114,18 @@ export function computeTrending(
 
   const byUrl = new Map<string, RawAggregate>();
   for (const p of posts) {
-    const tag = p.source_hashtag;
+    const acct = p.source_account;
     const existing = byUrl.get(p.post_url);
     if (!existing) {
       byUrl.set(p.post_url, {
         post: p,
-        hashtags: tag ? new Set([tag]) : new Set(),
-        topRank: Number.POSITIVE_INFINITY,
+        accounts: acct ? new Set([acct]) : new Set(),
       });
     } else {
-      if (tag) existing.hashtags.add(tag);
-      if (p.likes > existing.post.likes) existing.post = { ...p, source_hashtag: existing.post.source_hashtag };
-    }
-  }
-
-  const tagToPosts = new Map<string, RawAggregate[]>();
-  for (const agg of byUrl.values()) {
-    for (const tag of agg.hashtags) {
-      const list = tagToPosts.get(tag) ?? [];
-      list.push(agg);
-      tagToPosts.set(tag, list);
-    }
-  }
-  for (const list of tagToPosts.values()) {
-    const ephs = list.map((a) => computeEPH(a.post, now));
-    const sortedIdx = list
-      .map((_, i) => i)
-      .sort((a, b) => ephs[b] - ephs[a]);
-    for (let rank = 0; rank < sortedIdx.length; rank++) {
-      const agg = list[sortedIdx[rank]];
-      const r = rank + 1;
-      if (r < agg.topRank) agg.topRank = r;
+      if (acct) existing.accounts.add(acct);
+      if (p.likes > existing.post.likes) {
+        existing.post = { ...p, source_account: existing.post.source_account };
+      }
     }
   }
 
@@ -156,9 +135,17 @@ export function computeTrending(
   const ephPct = percentileRank(ephs);
   const reachPct = percentileRank(reaches);
 
+  const orderedIdx = aggs
+    .map((_, i) => i)
+    .sort((a, b) => ephs[b] - ephs[a]);
+  const rankByIdx = new Array<number>(aggs.length);
+  for (let r = 0; r < orderedIdx.length; r++) {
+    rankByIdx[orderedIdx[r]] = r + 1;
+  }
+
   const out: Trending[] = aggs.map((agg, i) => {
-    const topRank = Number.isFinite(agg.topRank) ? agg.topRank : 1;
-    const rank_weight = computeRankWeight(topRank);
+    const genre_rank = rankByIdx[i];
+    const rank_weight = computeRankWeight(genre_rank);
     const trend_score =
       weights.eph * ephPct[i] +
       weights.reach * reachPct[i] +
@@ -167,11 +154,11 @@ export function computeTrending(
       ...agg.post,
       eph: ephs[i],
       reach_proxy: reaches[i],
-      hashtag_top_rank: topRank,
+      genre_rank,
       rank_weight,
       trend_score,
       genre,
-      source_hashtags: [...agg.hashtags].sort(),
+      source_accounts: [...agg.accounts].sort(),
     };
   });
 

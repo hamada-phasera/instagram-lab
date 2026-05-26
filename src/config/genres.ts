@@ -1,17 +1,25 @@
 /**
- * Genre × hashtag mapping for Instagram trend discovery.
+ * Genre × seed-account mapping for Instagram trend discovery.
  *
- * Each genre groups hashtags that target the same audience / topic cluster.
- * `/collect` triggers Bright Data hashtag scraper for every hashtag in a genre,
- * then `/trending` aggregates results cross-tag inside the genre.
+ * Bright Data does NOT expose a hashtag discovery scraper in its public docs.
+ * The available endpoint is `instagram-posts-discover-by-url` which takes
+ * **profile URLs** as input and returns recent posts from each profile.
  *
- * Edit per project: add/remove genres and tune the hashtag set for each.
+ * MVP strategy: per genre, curate ~5 representative accounts. `/collect`
+ * batch-triggers discover-by-url for each account, then `/trending` ranks
+ * the union by EPH/reach/genre-rank.
+ *
+ * Edit per project: replace `accounts` with the brands/influencers you
+ * actually want to discover within each genre. `hashtags` is kept for UI
+ * display only (not used to drive collection).
  */
 
 export interface Genre {
   /** Display name (Japanese OK). */
   name: string;
-  /** Hashtags with leading `#`. Bright Data input strips the `#`. */
+  /** Instagram usernames (without @). Profile URLs are derived: https://www.instagram.com/{username}/ */
+  accounts: string[];
+  /** Display-only hashtags (formerly used to drive collection — now informational). */
   hashtags: string[];
   /** One-line description shown in the UI. */
   note?: string;
@@ -21,32 +29,31 @@ export const GENRES: Genre[] = [
   {
     name: "飲食",
     note: "ランチ・カフェ・グルメ系",
+    accounts: ["foodandwine", "bonappetitmag", "tasty", "buzzfeedtasty", "foodnetwork"],
     hashtags: ["#ランチ", "#グルメ", "#カフェ", "#foodporn", "#lunch"],
   },
   {
     name: "ソフトウェア",
     note: "エンジニア・プログラミング系",
-    hashtags: [
-      "#エンジニア",
-      "#プログラミング",
-      "#devops",
-      "#programming",
-      "#softwareengineer",
-    ],
+    accounts: ["github", "vercel", "nextjs", "reactjs", "vscode"],
+    hashtags: ["#エンジニア", "#プログラミング", "#devops", "#programming", "#softwareengineer"],
   },
   {
     name: "ファッション",
     note: "コーディネート・スタイル系",
+    accounts: ["voguemagazine", "gq", "highsnobiety", "ootdmagazine", "complexstyle"],
     hashtags: ["#ootd", "#fashion", "#コーディネート", "#outfit", "#fashionstyle"],
   },
   {
     name: "旅行",
     note: "国内外の旅行・観光系",
-    hashtags: ["#旅行", "#travel", "#trip", "#旅行好きな人と繋がりたい", "#wanderlust"],
+    accounts: ["natgeotravel", "lonelyplanet", "beautifuldestinations", "traveldeeper", "earthpix"],
+    hashtags: ["#旅行", "#travel", "#trip", "#wanderlust", "#旅行好きな人と繋がりたい"],
   },
   {
     name: "ライフスタイル",
     note: "暮らし・日常系",
+    accounts: ["muji_global", "kinfolk", "apartmenttherapy", "monocle", "thisiscolossal"],
     hashtags: ["#ライフスタイル", "#lifestyle", "#暮らし", "#日常", "#丁寧な暮らし"],
   },
 ];
@@ -56,8 +63,19 @@ export function findGenre(name: string): Genre | undefined {
 }
 
 /**
- * Find the genre that owns the given hashtag (case-insensitive, ignores leading `#`).
- * Returns undefined when the hashtag is not registered under any genre.
+ * Find the genre that owns the given account username (case-insensitive, ignores leading @).
+ */
+export function findGenreByAccount(username: string): Genre | undefined {
+  const norm = username.replace(/^@/, "").toLowerCase();
+  return GENRES.find((g) =>
+    g.accounts.some((a) => a.toLowerCase() === norm),
+  );
+}
+
+/**
+ * Find the genre that owns the given hashtag (kept for compat with older
+ * snapshots persisted with `source_hashtag`). Case-insensitive, ignores
+ * leading `#`. Returns undefined when the hashtag is not registered.
  */
 export function findGenreByHashtag(hashtag: string): Genre | undefined {
   const norm = hashtag.replace(/^#/, "").toLowerCase();

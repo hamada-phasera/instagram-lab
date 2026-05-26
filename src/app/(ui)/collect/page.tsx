@@ -7,15 +7,16 @@ export const dynamic = "force-dynamic";
 export default async function CollectPage() {
   const collected = await listCollected().catch(() => []);
   const hasBrightData = Boolean(process.env.BRIGHT_DATA_API_KEY);
-  const hasHashtagDataset = Boolean(process.env.BRIGHT_DATA_DATASET_HASHTAG);
+  const hasDiscoverDataset = Boolean(process.env.BRIGHT_DATA_DATASET_DISCOVER);
 
   return (
     <div className="space-y-8">
       <header>
         <h1 className="display text-3xl font-bold">① 収集</h1>
         <p className="mt-2 text-[var(--color-muted)]">
-          ジャンル（ハッシュタグ群）を選んで一括取得します。Bright Data の Hashtag
-          スクレイパで各ハッシュタグから投稿を集めて、<code>/trending</code> でジャンル横断のトレンドを表示します。
+          ジャンルを選んで、その代表アカウント群の直近投稿を一括取得します。Bright Data の
+          discover-by-url スクレイパで各 profile から N 投稿ずつ取り寄せ、
+          <code>/trending</code> でジャンル横断の推定トレンドを表示します。
         </p>
       </header>
 
@@ -25,9 +26,9 @@ export default async function CollectPage() {
           <div className="flex flex-wrap gap-2">
             <StatusBadge ok={hasBrightData} okLabel="Bright Data 接続 OK" ngLabel="Bright Data 未接続" />
             <StatusBadge
-              ok={hasHashtagDataset}
-              okLabel="HASHTAG dataset OK"
-              ngLabel="HASHTAG dataset 未設定 (503)"
+              ok={hasDiscoverDataset}
+              okLabel="DISCOVER dataset OK"
+              ngLabel="DISCOVER dataset 未設定 (503)"
             />
           </div>
         </div>
@@ -44,16 +45,21 @@ export default async function CollectPage() {
             {g.note && (
               <p className="mt-1 text-xs text-[var(--color-muted)]">{g.note}</p>
             )}
-            <ul className="mt-3 flex flex-wrap gap-2">
-              {g.hashtags.map((h) => (
-                <li
-                  key={h}
-                  className="rounded-full bg-[var(--color-accent-soft)] px-3 py-1 text-xs"
-                >
-                  {h}
-                </li>
-              ))}
-            </ul>
+            <div className="mt-3 space-y-2">
+              <ul className="flex flex-wrap gap-2">
+                {g.accounts.map((a) => (
+                  <li
+                    key={a}
+                    className="rounded-full bg-[var(--color-accent-soft)] px-3 py-1 text-xs font-mono"
+                  >
+                    @{a}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-[10px] text-[var(--color-muted)]">
+                参考タグ: {g.hashtags.join(" ")}
+              </p>
+            </div>
           </article>
         ))}
       </section>

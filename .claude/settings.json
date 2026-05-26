@@ -5,7 +5,9 @@
       "Bash(npx tsc *)",
       "Bash(git add *)",
       "Bash(git mv *)",
-      "Bash(git rm *)"
+      "Bash(git rm *)",
+      "Bash(lsof -i :5050 -sTCP:LISTEN)",
+      "WebFetch(domain:docs.brightdata.com)"
     ]
   },
   "hooks": {

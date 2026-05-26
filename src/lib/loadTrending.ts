@@ -2,12 +2,14 @@
  * Load all `trending-*.json` snapshots from storage and rank them
  * cross-genre via `computeTrending`. Used by /trending, /catalog, /voice.
  *
- * Each post in the persisted files carries `source_hashtag` injected by
- * `/api/collect`. We reverse-lookup the genre via `findGenreByHashtag`
- * and rank per-genre, then concatenate and sort by `trend_score` desc.
+ * Each post in the persisted files carries either `source_account`
+ * (current discover-by-url flow) or legacy `source_hashtag`. We
+ * reverse-lookup the genre via `findGenreByAccount` (preferred) or
+ * `findGenreByHashtag` (fallback) and rank per-genre, then concatenate
+ * and sort by `trend_score` desc.
  */
 
-import { findGenreByHashtag } from "@/config/genres";
+import { findGenreByAccount, findGenreByHashtag } from "@/config/genres";
 import { listCollected, readCollectedJson } from "@/lib/storage";
 import { computeTrending } from "@/lib/trending";
 import type { Post, Trending } from "@/types/post";
@@ -24,9 +26,9 @@ export async function loadAllTrending(): Promise<Trending[]> {
     const posts = await readCollectedJson<Post[]>(f.name).catch(() => null);
     if (!posts || posts.length === 0) continue;
     for (const p of posts) {
-      const tag = p.source_hashtag;
-      if (!tag) continue;
-      const genre = findGenreByHashtag(tag);
+      const genre =
+        (p.source_account && findGenreByAccount(p.source_account)) ||
+        (p.source_hashtag && findGenreByHashtag(p.source_hashtag));
       if (!genre) continue;
       const list = byGenre.get(genre.name) ?? [];
       list.push(p);

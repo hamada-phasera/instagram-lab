@@ -41,7 +41,12 @@ export function PostModal({ post, onClose }: PostModalProps) {
         <div>
           <p className="display text-base font-bold">@{post.account}</p>
           <p className="mt-0.5 text-xs text-[var(--color-muted)]">
-            {post.genre} · {post.source_hashtags.join(" ")} · {post.date}
+            {post.genre}
+            {post.source_accounts.length > 0
+              ? ` · seed @${post.source_accounts.join(", @")}`
+              : ""}
+            {" · "}
+            {post.date}
           </p>
         </div>
         <button
@@ -76,8 +81,8 @@ export function PostModal({ post, onClose }: PostModalProps) {
           <Stat label="EPH (engage/h)" value={post.eph.toFixed(1)} />
           <Stat label="reach_proxy" value={post.reach_proxy.toFixed(2)} />
           <Stat
-            label="hashtag 内順位"
-            value={Number.isFinite(post.hashtag_top_rank) ? `#${post.hashtag_top_rank}` : "—"}
+            label="ジャンル内順位"
+            value={Number.isFinite(post.genre_rank) ? `#${post.genre_rank}` : "—"}
           />
           <Stat label="likes" value={post.likes.toLocaleString()} />
           <Stat label="comments" value={post.comments.toLocaleString()} />
@@ -94,7 +99,7 @@ export function PostModal({ post, onClose }: PostModalProps) {
           </a>
           <p className="text-[10px] leading-snug text-[var(--color-muted)]">
             * trend_score は推定指標。views/followers と (likes+comments)/時間 +
-            ハッシュタグ内順位を合成。確定的なバズではありません。
+            ジャンル内順位を合成。確定的なバズではありません。
           </p>
         </aside>
       </div>

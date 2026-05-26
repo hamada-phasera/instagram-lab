@@ -4,10 +4,8 @@ import { useMemo, useState } from "react";
 
 import type { Genre } from "@/config/genres";
 
-type CollectKind = "hashtag";
-
-interface TagState {
-  hashtag: string;
+interface SeedState {
+  account: string;
   status: "idle" | "loading" | "ok" | "error";
   count?: number;
   error?: string;
@@ -23,37 +21,41 @@ export function CollectForm({ genres }: CollectFormProps) {
     () => genres.find((g) => g.name === genreName) ?? genres[0],
     [genres, genreName],
   );
-  const [tagStates, setTagStates] = useState<TagState[]>([]);
+  const [seedStates, setSeedStates] = useState<SeedState[]>([]);
   const [running, setRunning] = useState(false);
 
   async function runBatch() {
     if (!genre || running) return;
     setRunning(true);
-    const initial: TagState[] = genre.hashtags.map((h) => ({ hashtag: h, status: "loading" }));
-    setTagStates(initial);
+    const initial: SeedState[] = genre.accounts.map((a) => ({
+      account: a,
+      status: "loading",
+    }));
+    setSeedStates(initial);
 
     await Promise.all(
-      genre.hashtags.map(async (tag, i) => {
+      genre.accounts.map(async (account, i) => {
         try {
           const res = await fetch("/api/collect", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              type: "hashtag" as CollectKind,
-              target: tag,
+              type: "discover",
+              target: account,
               genre: genre.name,
+              numOfPosts: 50,
             }),
           });
           const data = (await res.json()) as
             | { ok: true; count: number; file: string }
             | { ok: false; error: string };
-          setTagStates((prev) => {
+          setSeedStates((prev) => {
             const next = [...prev];
             if (res.ok && data.ok) {
-              next[i] = { hashtag: tag, status: "ok", count: data.count };
+              next[i] = { account, status: "ok", count: data.count };
             } else {
               next[i] = {
-                hashtag: tag,
+                account,
                 status: "error",
                 error: data.ok ? `HTTP ${res.status}` : data.error,
               };
@@ -61,10 +63,10 @@ export function CollectForm({ genres }: CollectFormProps) {
             return next;
           });
         } catch (err) {
-          setTagStates((prev) => {
+          setSeedStates((prev) => {
             const next = [...prev];
             next[i] = {
-              hashtag: tag,
+              account,
               status: "error",
               error: err instanceof Error ? err.message : "network error",
             };
@@ -77,7 +79,8 @@ export function CollectForm({ genres }: CollectFormProps) {
     setRunning(false);
   }
 
-  const totalEstimate = (genre?.hashtags.length ?? 0) * 0.02;
+  const seedCount = genre?.accounts.length ?? 0;
+  const totalEstimate = seedCount * 0.02;
 
   return (
     <div className="space-y-5">
@@ -90,7 +93,7 @@ export function CollectForm({ genres }: CollectFormProps) {
           value={genreName}
           onChange={(e) => {
             setGenreName(e.target.value);
-            setTagStates([]);
+            setSeedStates([]);
           }}
           disabled={running}
         >
@@ -107,26 +110,26 @@ export function CollectForm({ genres }: CollectFormProps) {
           disabled={running || !genre}
           className="rounded-full bg-[var(--color-accent)] px-4 py-1.5 text-sm text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {running ? "取得中…" : `${genre?.hashtags.length ?? 0} タグ 一括取得`}
+          {running ? "取得中…" : `${seedCount} アカウント 一括取得`}
         </button>
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {genre?.hashtags.map((h) => (
+        {genre?.accounts.map((a) => (
           <span
-            key={h}
-            className="rounded-full bg-[var(--color-accent-soft)] px-3 py-1 text-xs"
+            key={a}
+            className="rounded-full bg-[var(--color-accent-soft)] px-3 py-1 text-xs font-mono"
           >
-            {h}
+            @{a}
           </span>
         ))}
       </div>
 
-      {tagStates.length > 0 && (
+      {seedStates.length > 0 && (
         <ul className="space-y-1 rounded-xl border border-[var(--color-accent-soft)] bg-white p-3 text-sm">
-          {tagStates.map((s) => (
-            <li key={s.hashtag} className="flex items-center justify-between gap-3 py-1">
-              <span className="font-mono text-xs">{s.hashtag}</span>
+          {seedStates.map((s) => (
+            <li key={s.account} className="flex items-center justify-between gap-3 py-1">
+              <span className="font-mono text-xs">@{s.account}</span>
               <StatusBadge state={s} />
             </li>
           ))}
@@ -135,13 +138,13 @@ export function CollectForm({ genres }: CollectFormProps) {
 
       <p className="text-xs text-[var(--color-muted)]">
         ⚠ Bright Data は<strong>後課金</strong>。1 ジャンル一括 ≈ ${totalEstimate.toFixed(2)} USD
-        相当の credit を消費（概算）。`/trending` でジャンル横断トレンドを確認できます。
+        相当の credit を消費（概算、1 アカウント = 50 投稿想定）。`/trending` でジャンル横断の推定トレンドを確認できます。
       </p>
     </div>
   );
 }
 
-function StatusBadge({ state }: { state: TagState }) {
+function StatusBadge({ state }: { state: SeedState }) {
   if (state.status === "idle") return null;
   if (state.status === "loading") {
     return (

@@ -45,7 +45,7 @@ export async function fetchDataset({
     throw new BrightDataError(0, "", "BRIGHT_DATA_API_KEY is not set");
   }
 
-  const url = `${BRIGHT_DATA_BASE_URL}?dataset_id=${encodeURIComponent(datasetId)}&format=json`;
+  const url = `${BRIGHT_DATA_BASE_URL}?dataset_id=${encodeURIComponent(datasetId)}&format=json&include_errors=true`;
   const res = await fetch(url, {
     method: "POST",
     headers: {
@@ -160,6 +160,7 @@ const PostSchema = z.object({
   hashtags: z.array(z.string()),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   date_iso: z.string().optional(),
+  source_account: z.string().optional(),
   source_hashtag: z.string().optional(),
   post_url: z.string().url(),
   thumbnail_url: z.string().url(),
