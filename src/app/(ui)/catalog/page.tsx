@@ -1,13 +1,15 @@
 import { CatalogAnalyzer } from "@/components/CatalogAnalyzer";
 import { BRAND_NAME } from "@/config/brand";
-import { loadMockPosts } from "@/lib/fixtures";
-import { scoreAll } from "@/lib/scoring";
+import { loadAllTrending } from "@/lib/loadTrending";
 import { HOOK_TYPES, VISUAL_TYPES } from "@/lib/taxonomy";
 
+export const dynamic = "force-dynamic";
+
+const TOP_N = 20;
+
 export default async function CatalogPage() {
-  const posts = await loadMockPosts();
-  const scored = scoreAll(posts);
-  const breakouts = scored.filter((s) => s.is_breakout);
+  const trending = await loadAllTrending();
+  const candidates = trending.slice(0, TOP_N);
   const hasAnthropic = Boolean(process.env.ANTHROPIC_API_KEY);
 
   return (
@@ -17,8 +19,8 @@ export default async function CatalogPage() {
           <div>
             <h1 className="display text-3xl font-bold">③ 型カタログ</h1>
             <p className="mt-2 text-[var(--color-muted)]">
-              ブレイク候補を Claude (vision) で「フック型 × ビジュアル型」に分解。
-              対象ブランド: <strong>{BRAND_NAME}</strong>
+              トレンド上位 {TOP_N} 件を Claude (vision) で「フック型 × ビジュアル型」に分解。
+              ブランド翻訳の参照先: <strong>{BRAND_NAME}</strong>
             </p>
           </div>
           <span
@@ -33,13 +35,13 @@ export default async function CatalogPage() {
         </div>
       </header>
 
-      {breakouts.length === 0 ? (
+      {candidates.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-[var(--color-accent-soft)] p-8 text-center text-[var(--color-muted)]">
-          ブレイク候補がありません。② ブレイク検出タブで閾値を確認してください。
+          トレンドデータがありません。<code>/collect</code> でジャンルを選んで取得してください。
         </p>
       ) : (
         <CatalogAnalyzer
-          candidates={breakouts}
+          candidates={candidates}
           hookTypes={HOOK_TYPES}
           visualTypes={VISUAL_TYPES}
           brandName={BRAND_NAME}

@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 
-import type { Scored } from "@/types/post";
+import type { Trending } from "@/types/post";
 
 type CatalogAnalysis = {
   hook_type: string;
@@ -18,10 +18,15 @@ type AnalysisState =
   | { kind: "error"; status: number; message: string };
 
 interface CatalogAnalyzerProps {
-  candidates: Scored[];
+  candidates: Trending[];
   hookTypes: readonly string[];
   visualTypes: readonly string[];
   brandName: string;
+}
+
+function fmt(n: number): string {
+  if (!Number.isFinite(n)) return "—";
+  return n.toFixed(2);
 }
 
 export function CatalogAnalyzer({
@@ -33,7 +38,7 @@ export function CatalogAnalyzer({
   const [results, setResults] = useState<Record<string, AnalysisState>>({});
   const [isPending, startTransition] = useTransition();
 
-  const analyze = (post: Scored) => {
+  const analyze = (post: Trending) => {
     setResults((prev) => ({ ...prev, [post.post_url]: { kind: "loading" } }));
     startTransition(async () => {
       try {
@@ -82,7 +87,7 @@ export function CatalogAnalyzer({
 
   // post_url -> {hook, visual} index for matrix cell lookup
   const cellMap = useMemo(() => {
-    const map = new Map<string, Scored[]>();
+    const map = new Map<string, Trending[]>();
     for (const c of candidates) {
       const r = results[c.post_url];
       if (r?.kind !== "ok") continue;
@@ -164,7 +169,7 @@ export function CatalogAnalyzer({
       </section>
 
       <section>
-        <h2 className="display text-lg font-bold">対象ブレイク候補 ({candidates.length})</h2>
+        <h2 className="display text-lg font-bold">対象トレンド上位 ({candidates.length})</h2>
         <p className="mt-2 text-sm text-[var(--color-muted)]">
           各カードの「分析」ボタンで <code>/api/analyze?mode=catalog</code> を呼び、Claude (vision) が
           hook_type / visual_type / なぜ視線が止まるか / {brandName} 翻訳案 を返します。
@@ -188,8 +193,8 @@ export function CatalogAnalyzer({
                     <div className="text-xs text-[var(--color-muted)]">@{c.account}</div>
                     <div className="line-clamp-1 text-sm">{c.caption}</div>
                   </div>
-                  <div className="display text-sm font-bold whitespace-nowrap">
-                    {c.view_ratio ? `${c.view_ratio.toFixed(1)}×` : "—"}
+                  <div className="display text-sm font-bold whitespace-nowrap" title="trend_score">
+                    {fmt(c.trend_score)}
                   </div>
                   <button
                     type="button"

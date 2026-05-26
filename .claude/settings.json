@@ -4,7 +4,8 @@
       "Bash(npm test *)",
       "Bash(npx tsc *)",
       "Bash(git add *)",
-      "Bash(git mv *)"
+      "Bash(git mv *)",
+      "Bash(git rm *)"
     ]
   },
   "hooks": {

@@ -27,15 +27,6 @@ export interface Post {
   comment_texts?: string[];
 }
 
-export interface Scored extends Post {
-  /** `views / followers` — null for feed/carousel (no views available). */
-  view_ratio: number | null;
-  /** `(likes + comments) / account_median_engagement` — 0 when median is 0. */
-  engagement_jump: number;
-  /** True when either ratio crosses its threshold. Proxy metric, not "viral". */
-  is_breakout: boolean;
-}
-
 export interface Trending extends Post {
   /** Engagement per hour: (likes+comments) / hours_since_post. */
   eph: number;

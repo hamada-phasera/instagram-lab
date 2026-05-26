@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 
-import type { Scored } from "@/types/post";
+import type { Trending } from "@/types/post";
 
 type Weight = "高" | "中" | "低";
 type Sentiment = "ポジ" | "ネガ" | "中立";
@@ -30,14 +30,14 @@ type AnalysisState =
   | { kind: "error"; status: number; message: string };
 
 interface VoiceAnalyzerProps {
-  posts: Scored[];
+  posts: Trending[];
 }
 
 export function VoiceAnalyzer({ posts }: VoiceAnalyzerProps) {
   const [results, setResults] = useState<Record<string, AnalysisState>>({});
   const [isPending, startTransition] = useTransition();
 
-  const analyze = (post: Scored) => {
+  const analyze = (post: Trending) => {
     const comments = post.comment_texts ?? [];
     if (comments.length === 0) return;
     setResults((prev) => ({ ...prev, [post.post_url]: { kind: "loading" } }));
@@ -104,11 +104,12 @@ export function VoiceAnalyzer({ posts }: VoiceAnalyzerProps) {
                   <span>@{p.account}</span>
                   <span>·</span>
                   <span>{p.date}</span>
-                  {p.is_breakout && (
-                    <span className="rounded-full bg-[var(--color-accent)] px-2 py-0.5 text-[10px] font-bold text-white">
-                      ブレイク候補
-                    </span>
-                  )}
+                  <span
+                    className="rounded-full bg-[var(--color-accent)] px-2 py-0.5 text-[10px] font-bold text-white"
+                    title="trend_score"
+                  >
+                    score {p.trend_score.toFixed(2)}
+                  </span>
                 </div>
                 <p className="mt-1 text-sm">{p.caption}</p>
 

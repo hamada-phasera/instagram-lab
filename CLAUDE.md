@@ -1,9 +1,9 @@
-# instagram-lab — Instagram Breakout Catalog
+# instagram-lab — Instagram Trend Discovery
 
 ## Overview
-食ジャンルに限らず、Instagram の競合アカウントから「想定フォロワー数を遥かに超えてバズった投稿（ブレイク投稿）」を発見し、その**獲得の素**（フック型 × ビジュアル型）を分解する社内ツール。クリエイティブ担当のフィード設計に転用する。
+Instagram の**ジャンル（ハッシュタグ群）横断**で「いま伸びている投稿」を発見し、その**獲得の素**（フック型 × ビジュアル型）と**声**（コメント分析）を分解する社内ツール。クリエイティブ担当のフィード設計に転用する。
 
-元仕様は FRIJOLES Creative Lab 向けだったが、対象ブランド・アカウント・ハッシュタグを `src/config/*.ts` で差し替えれば Phasera や他案件にも転用可能。
+**特定アカウントを watch しない**ジャンル発見型。ジャンル定義（例: 飲食/ソフトウェア/ファッション/旅行/ライフスタイル）は `src/config/genres.ts` で外部化、用途に応じて差し替え可能。
 
 ---
 
@@ -29,7 +29,7 @@ EDIT_LOG.md は append-only の自動ログ、STATE.md は手動の現状サマ�
 
 ログ形式:
 ```
-- [YYYY-MM-DD HH:MM:SS] Edit `src/lib/scoring.ts` — 直近のユーザープロンプト冒頭80字
+- [YYYY-MM-DD HH:MM:SS] Edit `src/lib/trending.ts` — 直近のユーザープロンプト冒頭80字
 ```
 
 ---
@@ -41,10 +41,12 @@ EDIT_LOG.md は append-only の自動ログ、STATE.md は手動の現状サマ�
 - **並列OK**: 触るファイルがディレクトリレベルで排他 / 共有ファイル（`package.json` 等）は親が事前に確定
 - **直列にする**: 同じファイルを両側が触る / 後段が前段の型・関数に依存している / scaffold 系の基盤作業
 
-本プロジェクトの並列マップ:
-- M1 Scaffold — 直列（基盤）
-- M2 BrightData / M3 scoring / M5 Claude — **3並列**（独立、メインツリーで OK、worktree 不要）
-- M4 UI — 直列（M2/M3/M5 を全部消費）
+本プロジェクトの並列マップ (歴史的):
+- M0/M1 Scaffold — 直列（基盤）
+- M2 BrightData / M3 scoring (now trending) / M5 Claude — 3並列（独立）
+- M4 UI / Pivot — 直列（M2/M3/M5 を全部消費）
+
+ジャンルトレンドピボット完了後は、新機能追加時に同様の判断を都度行う。
 
 並列起動の例:
 ```
@@ -58,9 +60,9 @@ Agent(subagent_type="general-purpose", description="M5 ai integration", ...)
 
 ## Business Context
 - Target: Instagram で集客するブランドのクリエイティブ担当・運用者（社内ツール）
-- Problem: 競合の **平常運転** を見ても新規獲得には繋がらない。**ブレイクした1本**だけを抜き出し、なぜ刺さったのかを再現可能な語彙に分解する
-- North Star Metric: 採用された型・起点の投稿が稼いだ **推定フォロワー外リーチ率** (`views / followers`)
-- MVP Scope: ①Bright Data 収集 → ②ブレイク検出 → ③型カタログ（フック×ビジュアル） → ④コメント声分析（自社オンリー・競合込み）
+- Problem: 競合の **平常運転** を見ても新規獲得には繋がらない。**ジャンル全体で今伸びている投稿**を横断発見し、なぜ刺さっているかを再現可能な語彙に分解する
+- North Star Metric: 採用された型・起点の投稿が稼いだ **推定トレンドスコア** (`pctRank(EPH) × 0.5 + pctRank(reach) × 0.3 + rank_weight × 0.2`)
+- MVP Scope: ①Bright Data 収集 (ジャンル一括) → ②トレンド一覧 (サムネ→ embed プレビュー) → ③型カタログ（フック×ビジュアル） → ④コメント声分析
 
 ## Tech Stack
 - Next.js (App Router) + TypeScript + Tailwind CSS
@@ -83,19 +85,23 @@ pnpm test:ci         # CI: JSON output → test-results.json
 ```
 src/
 ├── app/
-│   ├── (ui)/             # 4タブUI: collect / breakout / catalog / voice
+│   ├── (ui)/             # 4タブUI: collect / trending / catalog / voice
 │   └── api/              # route handlers (Backend)
-│       ├── collect/      # Bright Data 取得トリガ
-│       ├── breakout/     # スコア計算
+│       ├── collect/      # Bright Data 取得トリガ (hashtag + 任意 genre)
 │       └── analyze/      # Claude 声分析・型分解
 ├── lib/
-│   ├── brightdata.ts     # Bright Data クライアント
-│   ├── scoring.ts        # ブレイク検出ロジック（純関数）
+│   ├── brightdata.ts     # Bright Data クライアント + snapshot polling
+│   ├── trending.ts       # トレンドスコア純関数 (EPH / reach / rank_weight)
+│   ├── loadTrending.ts   # トレンド一覧ローダ (/trending /catalog /voice 共用)
+│   ├── storage.ts        # Vercel Blob ⇔ ローカル FS 二重ストレージ
 │   ├── claude.ts         # Anthropic クライアント
 │   └── taxonomy.ts       # フック型 × ビジュアル型 定義
 ├── components/           # UI (Frontend)
 ├── types/                # 共有型（Backend owns, all read）
-└── config/               # 閾値・対象アカウント・ハッシュタグ（外部化）
+└── config/
+    ├── genres.ts         # ジャンル × ハッシュタグ群 定義
+    ├── thresholds.ts     # TREND_WEIGHTS (eph 0.5 / reach 0.3 / rank 0.2)
+    └── brand.ts          # ブランド翻訳用ラベル
 data/                     # 取得JSONキャッシュ（.gitignore）
 docs/
 ├── STATE.md              # ✋ 手動: マイルストーン完了時の現状サマリ
@@ -110,15 +116,18 @@ tests/
 
 ## Data Pipe — Bright Data
 - API: `POST https://api.brightdata.com/datasets/v3/trigger?dataset_id={ID}&format=json` / Auth: `Bearer $BRIGHT_DATA_API_KEY`
-- 使うデータ種別: **posts / reels / comments / hashtag**。各 `dataset_id` は Bright Data コンソールで確認し `.env.local` に格納。**IDを推測でハードコードしない**。
-- 取得項目: followers, likes, comments(数+本文), views(reel), caption, hashtags, date, post_url, thumbnail/media URL
+- **v3 async pattern**: trigger は `{ snapshot_id }` を返す。`pollSnapshot` で progress (5s 間隔) → ready 後に snapshot 取得
+- 主に使うのは **`hashtag` dataset**（`BRIGHT_DATA_DATASET_HASHTAG`）。`posts / reels / comments` の dataset env は残存だが UI からは外している
+- 取得項目: followers, likes, num_comments, views (reel), description, date_posted (ISO), url, thumbnail
 - 無料$2クレジットで開始。**後課金**。実呼び出しは人間確認後（下記 Forbidden 参照）。
 
-## Breakout Detection（core logic / `lib/scoring.ts`）
-- `view_ratio = views / followers`（reelのみ）default閾値 3.0。`config/thresholds.ts` で可変
-- `engagement_jump = (likes + comments) / account_median_engagement` default閾値 2.0
-- `is_breakout = view_ratio >= T1 || engagement_jump >= T2`
-- ⚠️ **保存・シェア・リーチは非公開で取得不可**。上記はあくまでフォロワー外露出の代理指標。「確定的にバズった」と書かない。
+## Trend Scoring（core logic / `lib/trending.ts`）
+- `EPH = (likes + comments) / max(1, hours_since_post)` — 伸び率代理
+- `reach_proxy = views / followers`（reel） or `likes / followers`（feed/carousel）
+- `rank_weight = 1 / log2(hashtag_top_rank + 1)` — DCG 風、ハッシュタグ内順位 1 で 1.0
+- `trend_score = 0.5 * pctRank(EPH) + 0.3 * pctRank(reach_proxy) + 0.2 * rank_weight`
+- 同一 `post_url` は dedupe、複数ハッシュタグに乗る場合は min rank 採用、`source_hashtags` を集約
+- ⚠️ **保存・シェア・リーチは非公開で取得不可**。上記はあくまで代理指標。「確定的にバズった」「ブレイク確定」と書かない。
 
 ## Type Taxonomy (`lib/taxonomy.ts`)
 - フック型: 意外性/常識破壊 ・ 保存性/ハック ・ シズル/断面 ・ 数字/ランキング ・ ローカル/地名
@@ -128,7 +137,7 @@ tests/
 ## Design（frontend-design）
 - **frontend-design スキルを環境にあれば必ず使う**。無ければ以下を守る:
   - 汎用AI美学を避ける（Inter/Roboto/system-font、白地に紫グラデ禁止）
-  - 食 × エディトリアルの温かみを。表示用フォントは個性的なもの（Zen系等）
+  - エディトリアルの温かみを意識。表示用フォントは個性的なもの（Zen系等）
   - CSS変数でテーマ管理、密度はコントロール、データ表は明確に
   - モダンで使いやすさ最優先（迷わない導線・右スキャンでも情報設計）
 
@@ -164,4 +173,4 @@ tests/
 ### ログ・状態管理
 - NEVER: `docs/EDIT_LOG.md` の既存行を編集・削除（append-only / フックが管理）
 - NEVER: `docs/STATE.md` を独断で更新せず、マイルストーン完了時にユーザー確認を取る
-- NEVER: 「ブレイク確定」断定表現（必ず「推定」「代理指標」と表記）
+- NEVER: 「ブレイク確定」「確定的にバズった」断定表現（必ず「推定」「代理指標」と表記）。`trend_score` は「推定トレンドスコア」

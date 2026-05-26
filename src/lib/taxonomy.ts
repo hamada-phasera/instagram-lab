@@ -1,5 +1,5 @@
 /**
- * Hook x Visual taxonomy for breakout post classification.
+ * Hook x Visual taxonomy for trending post classification.
  *
  * `HOOK_TYPES` describes the narrative hook of the post (caption / opening line).
  * `VISUAL_TYPES` describes the dominant visual treatment of the thumbnail / first
