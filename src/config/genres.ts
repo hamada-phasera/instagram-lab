@@ -54,3 +54,14 @@ export const GENRES: Genre[] = [
 export function findGenre(name: string): Genre | undefined {
   return GENRES.find((g) => g.name === name);
 }
+
+/**
+ * Find the genre that owns the given hashtag (case-insensitive, ignores leading `#`).
+ * Returns undefined when the hashtag is not registered under any genre.
+ */
+export function findGenreByHashtag(hashtag: string): Genre | undefined {
+  const norm = hashtag.replace(/^#/, "").toLowerCase();
+  return GENRES.find((g) =>
+    g.hashtags.some((h) => h.replace(/^#/, "").toLowerCase() === norm),
+  );
+}

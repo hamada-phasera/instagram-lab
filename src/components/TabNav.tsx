@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 
 const tabs = [
   { href: "/collect", label: "① 収集" },
-  { href: "/breakout", label: "② ブレイク" },
+  { href: "/trending", label: "② トレンド" },
   { href: "/catalog", label: "③ 型カタログ" },
   { href: "/voice", label: "④ 声" },
 ];

@@ -159,6 +159,8 @@ const PostSchema = z.object({
   caption: z.string(),
   hashtags: z.array(z.string()),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  date_iso: z.string().optional(),
+  source_hashtag: z.string().optional(),
   post_url: z.string().url(),
   thumbnail_url: z.string().url(),
   comment_texts: z.array(z.string()).optional(),
@@ -200,6 +202,7 @@ function normalizeRawPost(item: unknown): Record<string, unknown> | null {
   const type = coerceMediaType(r.content_type ?? r.type ?? r.product_type ?? r.media_type);
   if (!type) return null;
   const caption = (r.description ?? r.caption ?? "") as string;
+  const dateRaw = r.date_posted ?? r.date ?? r.taken_at_date;
   return {
     account: r.user_posted ?? r.account ?? r.username ?? r.owner_username,
     followers: toNumber(r.followers ?? r.followers_count ?? r.owner_followers),
@@ -209,7 +212,8 @@ function normalizeRawPost(item: unknown): Record<string, unknown> | null {
     views: pickViews(r),
     caption,
     hashtags: extractHashtags(r.hashtags, caption),
-    date: normalizeDate(r.date_posted ?? r.date ?? r.taken_at_date),
+    date: normalizeDate(dateRaw),
+    date_iso: normalizeDateIso(dateRaw),
     post_url: r.url ?? r.post_url,
     thumbnail_url: r.thumbnail ?? r.thumbnail_url ?? r.display_url,
     comment_texts: Array.isArray(r.comment_texts) ? r.comment_texts : undefined,
@@ -242,6 +246,13 @@ function normalizeDate(d: unknown): string {
   if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
   const m = d.match(/^(\d{4}-\d{2}-\d{2})/);
   return m ? m[1] : "";
+}
+
+function normalizeDateIso(d: unknown): string | undefined {
+  if (typeof d !== "string") return undefined;
+  const t = Date.parse(d);
+  if (!Number.isFinite(t)) return undefined;
+  return new Date(t).toISOString();
 }
 
 function toNumber(v: unknown): number {

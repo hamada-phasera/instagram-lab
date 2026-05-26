@@ -149,6 +149,7 @@ describe("parsePosts", () => {
     expect(reel!.account).toBe("frijoles_tokyo");
     expect(reel!.views).toBe(50000);
     expect(reel!.date).toBe("2024-12-20");
+    expect(reel!.date_iso).toBe("2024-12-20T10:00:00.000Z");
     expect(reel!.comments).toBe(10);
 
     const carousel = posts.find((p) => p.type === "carousel");

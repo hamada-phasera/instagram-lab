@@ -29,6 +29,8 @@ const CollectKindSchema = z.enum(["posts", "reels", "comments", "hashtag"]);
 const RequestSchema = z.object({
   type: CollectKindSchema,
   target: z.string().min(1),
+  /** Optional genre label; when present, posts are persisted under the "trending" prefix. */
+  genre: z.string().optional(),
 });
 
 type CollectKind = z.infer<typeof CollectKindSchema>;
@@ -48,7 +50,7 @@ export async function POST(req: Request): Promise<NextResponse> {
       { status: 400 },
     );
   }
-  const { type, target } = parsed.data;
+  const { type, target, genre } = parsed.data;
 
   const datasetId = process.env[DATASET_ENV[type]];
   if (!process.env.BRIGHT_DATA_API_KEY || !datasetId) {
@@ -58,6 +60,9 @@ export async function POST(req: Request): Promise<NextResponse> {
     );
   }
 
+  const isTrending = type === "hashtag" && Boolean(genre);
+  const sourceHashtag = type === "hashtag" ? normalizeHashtag(target) : undefined;
+
   try {
     const triggerRes = await fetchDataset({
       datasetId,
@@ -65,11 +70,14 @@ export async function POST(req: Request): Promise<NextResponse> {
     });
     const snapshotId = extractSnapshotId(triggerRes);
     const raw = snapshotId ? await pollSnapshot(snapshotId) : triggerRes;
-    const posts = parsePosts(raw);
-    const stored = await persistJson(type, posts);
+    const posts = parsePosts(raw).map((p) =>
+      sourceHashtag ? { ...p, source_hashtag: sourceHashtag } : p,
+    );
+    const prefix = isTrending ? "trending" : type;
+    const stored = await persistJson(prefix, posts);
     let rawLocation: string | undefined;
     if (posts.length === 0) {
-      const rawStored = await persistJson(`${type}-raw`, raw);
+      const rawStored = await persistJson(`${prefix}-raw`, raw);
       rawLocation = rawStored.location;
     }
     return NextResponse.json({
@@ -77,6 +85,8 @@ export async function POST(req: Request): Promise<NextResponse> {
       count: posts.length,
       file: stored.location,
       name: stored.name,
+      ...(genre ? { genre } : {}),
+      ...(sourceHashtag ? { source_hashtag: sourceHashtag } : {}),
       ...(snapshotId ? { snapshot_id: snapshotId } : {}),
       ...(rawLocation ? { raw: rawLocation } : {}),
     });
@@ -85,6 +95,10 @@ export async function POST(req: Request): Promise<NextResponse> {
     const error = err instanceof Error ? err.message : "unknown error";
     return NextResponse.json({ ok: false, error }, { status });
   }
+}
+
+function normalizeHashtag(target: string): string {
+  return target.startsWith("#") ? target : `#${target}`;
 }
 
 async function safeJson(req: Request): Promise<unknown> {
@@ -96,7 +110,7 @@ async function safeJson(req: Request): Promise<unknown> {
 }
 
 export interface CollectedFileEntry extends StoredFile {
-  type: CollectKind | "unknown";
+  type: CollectKind | "trending" | "unknown";
 }
 
 export async function GET(): Promise<NextResponse> {
@@ -113,8 +127,9 @@ export async function GET(): Promise<NextResponse> {
   }
 }
 
-function matchKind(name: string): CollectKind | null {
+function matchKind(name: string): CollectKind | "trending" | null {
   const prefix = name.split("-")[0];
+  if (prefix === "trending") return "trending";
   return CollectKindSchema.safeParse(prefix).success
     ? (prefix as CollectKind)
     : null;

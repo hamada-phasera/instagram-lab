@@ -4,12 +4,12 @@ const tabs = [
   {
     href: "/collect",
     label: "① 収集",
-    desc: "対象アカウント・ハッシュタグから Bright Data 取得",
+    desc: "ジャンル（ハッシュタグ群）を選んで Bright Data 一括取得",
   },
   {
-    href: "/breakout",
-    label: "② ブレイク検出",
-    desc: "view_ratio / engagement_jump でブレイク候補を抽出",
+    href: "/trending",
+    label: "② トレンド",
+    desc: "EPH × reach × ハッシュタグ内順位 で推定トレンド一覧",
   },
   {
     href: "/catalog",
@@ -31,11 +31,11 @@ export default function Home() {
           instagram-lab
         </p>
         <h1 className="display mt-2 text-4xl font-bold sm:text-5xl">
-          Breakout Catalog
+          Trend Discovery
         </h1>
         <p className="mt-4 max-w-2xl text-[var(--color-muted)]">
-          Instagram の競合から「フォロワー数を遥かに超えてバズった投稿」だけを抽出し、
-          なぜ通りすがりのユーザーの指が止まったかを再現可能な語彙に分解します。
+          ジャンル別に Instagram のハッシュタグを横断し、いま伸びている投稿を発見します。
+          サムネクリックで実物を見ながら、惹かれた投稿を型分解・声分析で深掘りできます。
         </p>
       </header>
 
@@ -56,7 +56,7 @@ export default function Home() {
       </section>
 
       <footer className="mt-16 text-xs text-[var(--color-muted)]">
-        ⚠ ブレイク判定は views/followers の代理指標による「推定」です。確定的な表現は避けてください。
+        ⚠ トレンドスコアは EPH / reach / 順位の代理指標による「推定」です。確定的なバズ判定ではありません。
       </footer>
     </main>
   );

@@ -1,47 +1,61 @@
 import { CollectForm } from "@/components/CollectForm";
-import { TARGET_ACCOUNTS } from "@/config/accounts";
-import { TARGET_HASHTAGS } from "@/config/hashtags";
-import { loadMockPosts } from "@/lib/fixtures";
+import { GENRES } from "@/config/genres";
 import { listCollected } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 
 export default async function CollectPage() {
-  const [mockPosts, collected] = await Promise.all([
-    loadMockPosts(),
-    listCollected().catch(() => []),
-  ]);
+  const collected = await listCollected().catch(() => []);
   const hasBrightData = Boolean(process.env.BRIGHT_DATA_API_KEY);
+  const hasHashtagDataset = Boolean(process.env.BRIGHT_DATA_DATASET_HASHTAG);
 
   return (
     <div className="space-y-8">
       <header>
         <h1 className="display text-3xl font-bold">① 収集</h1>
         <p className="mt-2 text-[var(--color-muted)]">
-          対象アカウント・ハッシュタグから Bright Data API で投稿を取得します。
-          MVP はモックフィクスチャ（{mockPosts.length} 件）でも動作確認できます。
+          ジャンル（ハッシュタグ群）を選んで一括取得します。Bright Data の Hashtag
+          スクレイパで各ハッシュタグから投稿を集めて、<code>/trending</code> でジャンル横断のトレンドを表示します。
         </p>
       </header>
 
       <section className="rounded-2xl border border-[var(--color-accent-soft)] bg-white p-6">
-        <div className="mb-4 flex items-baseline justify-between">
-          <h2 className="display text-lg font-bold">取得トリガ</h2>
-          <span
-            className={`rounded-full px-3 py-1 text-xs font-medium ${
-              hasBrightData
-                ? "bg-emerald-100 text-emerald-800"
-                : "bg-yellow-100 text-yellow-800"
-            }`}
-          >
-            {hasBrightData ? "Bright Data 接続 OK" : "Bright Data 未接続 (503)"}
-          </span>
+        <div className="mb-4 flex flex-wrap items-baseline justify-between gap-3">
+          <h2 className="display text-lg font-bold">ジャンル一括取得</h2>
+          <div className="flex flex-wrap gap-2">
+            <StatusBadge ok={hasBrightData} okLabel="Bright Data 接続 OK" ngLabel="Bright Data 未接続" />
+            <StatusBadge
+              ok={hasHashtagDataset}
+              okLabel="HASHTAG dataset OK"
+              ngLabel="HASHTAG dataset 未設定 (503)"
+            />
+          </div>
         </div>
-        <CollectForm accounts={TARGET_ACCOUNTS} hashtags={TARGET_HASHTAGS} />
+        <CollectForm genres={GENRES} />
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-2">
-        <Card title="対象アカウント (config)" items={TARGET_ACCOUNTS.map((a) => `@${a.username}${a.isOwn ? " ★" : ""}`)} />
-        <Card title="対象ハッシュタグ (config)" items={TARGET_HASHTAGS} />
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {GENRES.map((g) => (
+          <article
+            key={g.name}
+            className="rounded-2xl border border-[var(--color-accent-soft)] bg-white p-5"
+          >
+            <h3 className="display text-base font-bold">{g.name}</h3>
+            {g.note && (
+              <p className="mt-1 text-xs text-[var(--color-muted)]">{g.note}</p>
+            )}
+            <ul className="mt-3 flex flex-wrap gap-2">
+              {g.hashtags.map((h) => (
+                <li
+                  key={h}
+                  className="rounded-full bg-[var(--color-accent-soft)] px-3 py-1 text-xs"
+                >
+                  {h}
+                </li>
+              ))}
+            </ul>
+          </article>
+        ))}
       </section>
 
       <section className="rounded-2xl border border-[var(--color-accent-soft)] bg-white p-6">
@@ -78,21 +92,15 @@ export default async function CollectPage() {
   );
 }
 
-function Card({ title, items }: { title: string; items: string[] }) {
+function StatusBadge({ ok, okLabel, ngLabel }: { ok: boolean; okLabel: string; ngLabel: string }) {
   return (
-    <div className="rounded-2xl border border-[var(--color-accent-soft)] bg-white p-6">
-      <h2 className="display text-lg font-bold">{title}</h2>
-      <ul className="mt-3 flex flex-wrap gap-2">
-        {items.map((s) => (
-          <li
-            key={s}
-            className="rounded-full bg-[var(--color-accent-soft)] px-3 py-1 text-xs text-[var(--color-fg)]"
-          >
-            {s}
-          </li>
-        ))}
-      </ul>
-    </div>
+    <span
+      className={`rounded-full px-3 py-1 text-xs font-medium ${
+        ok ? "bg-emerald-100 text-emerald-800" : "bg-yellow-100 text-yellow-800"
+      }`}
+    >
+      {ok ? okLabel : ngLabel}
+    </span>
   );
 }
 

@@ -9,7 +9,7 @@
  * function filesystem is ephemeral and largely read-only.
  */
 
-import { mkdir, readdir, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 export interface StoredFile {
@@ -78,6 +78,28 @@ export async function listCollected(): Promise<StoredFile[]> {
     return out.sort((a, b) => b.mtime.localeCompare(a.mtime));
   } catch (err) {
     if (isNodeNotFound(err)) return [];
+    throw err;
+  }
+}
+
+/**
+ * Read a previously persisted JSON file by name. Returns null if not found.
+ * For Blob backend the file is fetched over HTTP via its public URL.
+ */
+export async function readCollectedJson<T>(name: string): Promise<T | null> {
+  if (useBlob()) {
+    const files = await listCollected();
+    const match = files.find((f) => f.name === name);
+    if (!match?.url) return null;
+    const res = await fetch(match.url);
+    if (!res.ok) return null;
+    return (await res.json()) as T;
+  }
+  try {
+    const body = await readFile(path.join(DATA_DIR, name), "utf8");
+    return JSON.parse(body) as T;
+  } catch (err) {
+    if (isNodeNotFound(err)) return null;
     throw err;
   }
 }
