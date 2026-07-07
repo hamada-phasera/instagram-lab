@@ -32,3 +32,4 @@ test-results.json
 
 # typescript incremental build cache
 tsconfig.tsbuildinfo
+.vercel

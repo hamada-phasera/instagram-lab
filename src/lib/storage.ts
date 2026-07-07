@@ -36,7 +36,7 @@ export async function persistJson(
   if (useBlob()) {
     const { put } = await import("@vercel/blob");
     const result = await put(`collected/${name}`, body, {
-      access: "public",
+      access: "private",
       contentType: "application/json",
       addRandomSuffix: false,
       token: process.env.BLOB_READ_WRITE_TOKEN,
@@ -84,16 +84,19 @@ export async function listCollected(): Promise<StoredFile[]> {
 
 /**
  * Read a previously persisted JSON file by name. Returns null if not found.
- * For Blob backend the file is fetched over HTTP via its public URL.
+ * For the Blob backend the store is private, so we read it server-side via
+ * `get()` (authenticated by BLOB_READ_WRITE_TOKEN) and consume the stream —
+ * the blob URL itself is not publicly fetchable.
  */
 export async function readCollectedJson<T>(name: string): Promise<T | null> {
   if (useBlob()) {
-    const files = await listCollected();
-    const match = files.find((f) => f.name === name);
-    if (!match?.url) return null;
-    const res = await fetch(match.url);
-    if (!res.ok) return null;
-    return (await res.json()) as T;
+    const { get } = await import("@vercel/blob");
+    const result = await get(`collected/${name}`, {
+      access: "private",
+      token: process.env.BLOB_READ_WRITE_TOKEN,
+    });
+    if (!result?.stream) return null;
+    return (await new Response(result.stream).json()) as T;
   }
   try {
     const body = await readFile(path.join(DATA_DIR, name), "utf8");

@@ -28,9 +28,9 @@ export interface Genre {
 export const GENRES: Genre[] = [
   {
     name: "飲食",
-    note: "ランチ・カフェ・グルメ系",
-    accounts: ["foodandwine", "bonappetitmag", "tasty", "buzzfeedtasty", "foodnetwork"],
-    hashtags: ["#ランチ", "#グルメ", "#カフェ", "#foodporn", "#lunch"],
+    note: "日本の飲食店（店紹介・グルメ発見系。レシピ動画メディアは除外）",
+    accounts: ["muni_gurume_japan", "tokyogourmet3", "ma_sa_cafe", "tokyo_highcosper_gourmet"],
+    hashtags: ["#東京グルメ", "#ランチ", "#カフェ巡り", "#ディナー", "#飯テロ"],
   },
   {
     name: "ソフトウェア",

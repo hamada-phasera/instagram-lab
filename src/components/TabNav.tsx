@@ -7,7 +7,9 @@ const tabs = [
   { href: "/collect", label: "① 収集" },
   { href: "/trending", label: "② トレンド" },
   { href: "/catalog", label: "③ 型カタログ" },
-  { href: "/voice", label: "④ 声" },
+  // 「④ 声」は discover-by-url データセットがコメント本文を返さないため一旦非表示。
+  // コメント用データセット購読後に復活させる（route は /voice に温存）。
+  // { href: "/voice", label: "④ 声" },
 ];
 
 export function TabNav() {

@@ -157,12 +157,17 @@ function matchKind(name: string): CollectKind | "trending" | null {
 
 function buildInput(type: CollectKind, target: string, _numOfPosts: number): unknown {
   const base = "https://www.instagram.com";
+  const profileUrl = `${base}/${target.replace(/^@/, "")}/`;
+  // NOTE: the discover-by-url dataset (gd_l1vikfch901nx3by4) rejects a
+  // `num_of_posts` field ("should not contain a num_of_posts field") and
+  // returns a fixed ~12 recent posts per profile. To collect more, add more
+  // seed accounts rather than trying to deepen a single profile.
   switch (type) {
     case "discover":
     case "posts":
     case "reels":
     case "comments":
-      return { input: [{ url: `${base}/${target.replace(/^@/, "")}/` }] };
+      return { input: [{ url: profileUrl }] };
     case "hashtag":
       return { input: [{ url: `${base}/explore/tags/${target.replace(/^#/, "")}/` }] };
   }
