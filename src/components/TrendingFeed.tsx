@@ -4,9 +4,22 @@ import { useMemo, useState } from "react";
 
 import { PostModal } from "@/components/PostModal";
 import { TrendingCard } from "@/components/TrendingCard";
-import type { Trending } from "@/types/post";
+import type { MediaType, Trending } from "@/types/post";
 
 type SortBy = "trend_score" | "eph" | "reach_proxy";
+type TypeFilter = MediaType | "all";
+
+const TYPE_OPTIONS: { key: MediaType; label: string }[] = [
+  { key: "reel", label: "リール" },
+  { key: "carousel", label: "カルーセル" },
+  { key: "feed", label: "フィード" },
+];
+
+// Hiragana + Katakana range — a strong "Japanese post" signal (Chinese uses no kana).
+const JP_RE = /[぀-ヿ]/;
+function isJapanese(p: Trending): boolean {
+  return JP_RE.test(p.caption) || p.hashtags.some((h) => JP_RE.test(h));
+}
 
 interface TrendingFeedProps {
   posts: Trending[];
@@ -15,13 +28,28 @@ interface TrendingFeedProps {
 
 export function TrendingFeed({ posts, genres }: TrendingFeedProps) {
   const [genreFilter, setGenreFilter] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
+  const [jpOnly, setJpOnly] = useState<boolean>(false);
   const [sortBy, setSortBy] = useState<SortBy>("trend_score");
   const [selected, setSelected] = useState<Trending | null>(null);
 
+  // Posts in the current genre — type-filter counts are shown against this set.
+  const inGenre = useMemo(
+    () => (genreFilter === "all" ? posts : posts.filter((p) => p.genre === genreFilter)),
+    [posts, genreFilter],
+  );
+
+  const typeFiltered = useMemo(
+    () => (typeFilter === "all" ? inGenre : inGenre.filter((p) => p.type === typeFilter)),
+    [inGenre, typeFilter],
+  );
+
+  const jpCount = useMemo(() => typeFiltered.filter(isJapanese).length, [typeFiltered]);
+
   const visible = useMemo(() => {
-    const filtered = genreFilter === "all" ? posts : posts.filter((p) => p.genre === genreFilter);
+    const filtered = jpOnly ? typeFiltered.filter(isJapanese) : typeFiltered;
     return [...filtered].sort((a, b) => b[sortBy] - a[sortBy]);
-  }, [posts, genreFilter, sortBy]);
+  }, [typeFiltered, jpOnly, sortBy]);
 
   return (
     <>
@@ -43,6 +71,34 @@ export function TrendingFeed({ posts, genres }: TrendingFeedProps) {
               </FilterChip>
             );
           })}
+        </FilterGroup>
+
+        <FilterGroup label="形式">
+          <FilterChip active={typeFilter === "all"} onClick={() => setTypeFilter("all")}>
+            全て {inGenre.length}
+          </FilterChip>
+          {TYPE_OPTIONS.map((t) => {
+            const count = inGenre.filter((p) => p.type === t.key).length;
+            if (count === 0) return null;
+            return (
+              <FilterChip
+                key={t.key}
+                active={typeFilter === t.key}
+                onClick={() => setTypeFilter(t.key)}
+              >
+                {t.label} {count}
+              </FilterChip>
+            );
+          })}
+        </FilterGroup>
+
+        <FilterGroup label="言語">
+          <FilterChip active={!jpOnly} onClick={() => setJpOnly(false)}>
+            全て {typeFiltered.length}
+          </FilterChip>
+          <FilterChip active={jpOnly} onClick={() => setJpOnly(true)}>
+            日本語のみ {jpCount}
+          </FilterChip>
         </FilterGroup>
 
         <FilterGroup label="ソート">
