@@ -15,7 +15,9 @@
  *     → validation reject: url must match a profile-URL pattern
  *       (input schema: url / num_of_posts / start_date / end_date / post_type)
  *   - profile-discover gd_l1vikfch901nx3by4 + explore/tags URL
- *     → trigger accepted but the job returns an error row (not a profile)
+ *     → trigger accepted; job returns error row "Crawler error: Mobile
+ *       frontend profile HTML for explore does not contain
+ *       xig_user_by_igid_v2" (crawler parses input as a profile page)
  *   ⇒ neither general dataset does hashtags; use the dedicated hashtag
  *     scraper's dataset id from the Bright Data console via --dataset.
  *
