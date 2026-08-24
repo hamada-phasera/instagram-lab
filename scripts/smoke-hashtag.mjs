@@ -2,12 +2,17 @@
 /**
  * One-shot smoke test for Bright Data hashtag discovery (post-paid API).
  *
- * Verifies the wire format implemented in src/app/api/collect/route.ts
- * (`type=discover_new&discover_by=hashtag`, payload `{ input: [{ hashtag,
- * num_of_posts }] }`) with the smallest possible paid run, WITHOUT needing
- * the dev server. On a format mismatch Bright Data rejects the trigger with
- * a validation error before any scraping happens (= no charge), and this
- * script prints that error verbatim so the payload can be fixed.
+ * Empirically determines the working wire format for hashtag-based
+ * collection. Bright Data rejects a malformed trigger with a 400 validation
+ * error BEFORE any scraping happens (= no charge), so this script walks an
+ * ordered list of candidate formats: each 400 is free and printed verbatim;
+ * the first accepted trigger proceeds to polling and snapshot download.
+ *
+ * Established so far (2026-08-24, real 400 responses):
+ *   - posts dataset gd_lk5ns7kz21pck8jpis + discover_by=hashtag
+ *     → "Incorrect discovery collector id Available types: url"
+ *     (posts discovery supports URL input only — so we feed it the hashtag
+ *      *explore URL* instead of a bare tag)
  *
  * NEVER runs implicitly: requires --yes AND BRIGHT_DATA_API_KEY in
  * .env.local (or the environment). Per CLAUDE.md, a human runs this — CI
@@ -15,6 +20,9 @@
  *
  * Usage:
  *   node scripts/smoke-hashtag.mjs --tag ブリトー --n 5 --yes
+ *   # manual override of a single candidate:
+ *   node scripts/smoke-hashtag.mjs --tag ブリトー --n 5 --yes \
+ *     --dataset gd_xxx --discover-by url
  *
  * Output: data/hashtag-smoke-<timestamp>.json (raw snapshot). The console
  * prints record count and per-record field names only — never captions or
@@ -27,9 +35,8 @@ import { resolve } from "node:path";
 const TRIGGER = "https://api.brightdata.com/datasets/v3/trigger";
 const PROGRESS = "https://api.brightdata.com/datasets/v3/progress";
 const SNAPSHOT = "https://api.brightdata.com/datasets/v3/snapshot";
-// Instagram *posts* dataset — hashtag discovery runs on this dataset with
-// discovery query params. Override with BRIGHT_DATA_DATASET_HASHTAG.
-const DEFAULT_POSTS_DATASET = "gd_lk5ns7kz21pck8jpis";
+const POSTS_DATASET = "gd_lk5ns7kz21pck8jpis"; // Instagram - Posts
+const PROFILE_DISCOVER_DATASET = "gd_l1vikfch901nx3by4"; // posts-discover-by-url (proven in production)
 
 function loadDotEnvLocal() {
   try {
@@ -46,6 +53,66 @@ function loadDotEnvLocal() {
 function arg(name, fallback) {
   const i = process.argv.indexOf(`--${name}`);
   return i >= 0 && process.argv[i + 1] ? process.argv[i + 1] : fallback;
+}
+
+/**
+ * Candidate wire formats, tried in order. A 400 validation reject is free;
+ * the first 2xx wins. `explore/tags/<tag>/` is the canonical hashtag URL.
+ */
+function buildCandidates(tag, n) {
+  const tagUrl = `https://www.instagram.com/explore/tags/${encodeURIComponent(tag)}/`;
+  const hashtagEnv = process.env.BRIGHT_DATA_DATASET_HASHTAG;
+  const discoverEnv = process.env.BRIGHT_DATA_DATASET_DISCOVER;
+  const candidates = [
+    {
+      label: "posts + discover_by=url + explore/tags URL + num_of_posts",
+      dataset: hashtagEnv || POSTS_DATASET,
+      qp: { type: "discover_new", discover_by: "url" },
+      input: { url: tagUrl, num_of_posts: n },
+    },
+    {
+      label: "posts + discover_by=url + explore/tags URL (no num_of_posts)",
+      dataset: hashtagEnv || POSTS_DATASET,
+      qp: { type: "discover_new", discover_by: "url" },
+      input: { url: tagUrl },
+    },
+    {
+      label: "profile-discover dataset + explore/tags URL (mirrors proven profile flow)",
+      dataset: discoverEnv || PROFILE_DISCOVER_DATASET,
+      qp: undefined,
+      input: { url: tagUrl },
+    },
+  ];
+  // Manual override narrows to exactly one attempt.
+  const dsOverride = arg("dataset", "");
+  if (dsOverride) {
+    const by = arg("discover-by", "url");
+    return [
+      {
+        label: `manual: ${dsOverride} discover_by=${by}`,
+        dataset: dsOverride,
+        qp: { type: "discover_new", discover_by: by },
+        input: by === "hashtag" ? { hashtag: tag, num_of_posts: n } : { url: tagUrl, num_of_posts: n },
+      },
+    ];
+  }
+  return candidates;
+}
+
+async function tryTrigger(auth, cand) {
+  const extra = cand.qp
+    ? Object.entries(cand.qp)
+        .map(([k, v]) => `&${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+        .join("")
+    : "";
+  const url = `${TRIGGER}?dataset_id=${encodeURIComponent(cand.dataset)}&format=json&include_errors=true${extra}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { ...auth, "Content-Type": "application/json" },
+    body: JSON.stringify({ input: [cand.input] }),
+  });
+  const bodyText = await res.text();
+  return { ok: res.ok, status: res.status, bodyText };
 }
 
 async function main() {
@@ -66,41 +133,42 @@ async function main() {
 
   const tag = arg("tag", "ブリトー").replace(/^#/, "");
   const n = Math.min(20, Math.max(1, Number(arg("n", "5")) || 5));
-  const datasetId = process.env.BRIGHT_DATA_DATASET_HASHTAG || DEFAULT_POSTS_DATASET;
-  if (!process.env.BRIGHT_DATA_DATASET_HASHTAG) {
-    console.log(`BRIGHT_DATA_DATASET_HASHTAG not set — defaulting to posts dataset ${DEFAULT_POSTS_DATASET}.`);
-  }
-
-  const url =
-    `${TRIGGER}?dataset_id=${encodeURIComponent(datasetId)}` +
-    `&format=json&include_errors=true&type=discover_new&discover_by=hashtag`;
-  const payload = { input: [{ hashtag: tag, num_of_posts: n }] };
-  console.log(`Trigger: dataset=${datasetId} tag=#${tag} num_of_posts=${n}`);
-
   const auth = { Authorization: `Bearer ${apiKey}` };
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { ...auth, "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const bodyText = await res.text();
-  if (!res.ok) {
-    console.error(`Trigger REJECTED (${res.status}) — usually a payload-shape validation error (no charge):`);
-    console.error(bodyText.slice(0, 1000));
-    process.exit(1);
-  }
 
   let snapshotId;
-  try {
-    snapshotId = JSON.parse(bodyText).snapshot_id;
-  } catch {
-    /* fall through */
+  let winner;
+  for (const cand of buildCandidates(tag, n)) {
+    console.log(`\nTrying: ${cand.label}`);
+    console.log(`  dataset=${cand.dataset} qp=${JSON.stringify(cand.qp ?? {})} input=${JSON.stringify(cand.input)}`);
+    const r = await tryTrigger(auth, cand);
+    if (!r.ok) {
+      console.log(`  REJECTED (${r.status}, no charge): ${r.bodyText.slice(0, 300)}`);
+      continue;
+    }
+    try {
+      snapshotId = JSON.parse(r.bodyText).snapshot_id;
+    } catch {
+      /* fall through */
+    }
+    if (!snapshotId) {
+      console.log(`  Accepted but no snapshot_id?: ${r.bodyText.slice(0, 300)}`);
+      continue;
+    }
+    winner = cand;
+    break;
   }
-  if (!snapshotId) {
-    console.error("No snapshot_id in trigger response:");
-    console.error(bodyText.slice(0, 1000));
+
+  if (!snapshotId || !winner) {
+    console.error(
+      "\nAll candidates rejected. Next step: open the Bright Data console →\n" +
+        "Web Scraper API → Instagram → look for a hashtag scraper and copy its\n" +
+        "dataset id, then re-run with:\n" +
+        "  node scripts/smoke-hashtag.mjs --tag ブリトー --n 5 --yes --dataset gd_xxxx --discover-by hashtag",
+    );
     process.exit(1);
   }
+
+  console.log(`\nACCEPTED: ${winner.label}`);
   console.log(`snapshot_id=${snapshotId} — polling (5s interval, max 10min)...`);
 
   let status = "unknown";
@@ -143,6 +211,7 @@ async function main() {
   }
   // Field names only — captions/comments may contain personal data (CLAUDE.md).
   console.log(`Saved raw snapshot → ${outPath}`);
+  console.log(`Winning format: ${winner.label}`);
   console.log(`Records: ${records.length}`);
   const keyCounts = new Map();
   for (const r of records.slice(0, 50)) {
@@ -156,8 +225,8 @@ async function main() {
       console.log(`  ${k}: ${c}`);
     }
     console.log(
-      "\nNext: compare these field names with normalizeRawPost() aliases in src/lib/brightdata.ts.\n" +
-        "If they line up, run the real collection from the /collect UI (hashtag mode).",
+      "\nNext: paste this output back to Claude — the /collect route will be\n" +
+        "aligned to the winning format and these field names.",
     );
   }
 }
