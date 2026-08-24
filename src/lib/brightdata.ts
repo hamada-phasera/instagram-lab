@@ -30,6 +30,11 @@ export class BrightDataError extends Error {
 export interface FetchDatasetArgs {
   datasetId: string;
   payload: unknown;
+  /**
+   * Extra query params appended to the trigger URL. Used for discovery
+   * phases, e.g. `{ type: "discover_new", discover_by: "hashtag" }`.
+   */
+  queryParams?: Record<string, string>;
 }
 
 /**
@@ -39,13 +44,19 @@ export interface FetchDatasetArgs {
 export async function fetchDataset({
   datasetId,
   payload,
+  queryParams,
 }: FetchDatasetArgs): Promise<unknown> {
   const apiKey = process.env.BRIGHT_DATA_API_KEY;
   if (!apiKey) {
     throw new BrightDataError(0, "", "BRIGHT_DATA_API_KEY is not set");
   }
 
-  const url = `${BRIGHT_DATA_BASE_URL}?dataset_id=${encodeURIComponent(datasetId)}&format=json&include_errors=true`;
+  const extra = queryParams
+    ? Object.entries(queryParams)
+        .map(([k, v]) => `&${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+        .join("")
+    : "";
+  const url = `${BRIGHT_DATA_BASE_URL}?dataset_id=${encodeURIComponent(datasetId)}&format=json&include_errors=true${extra}`;
   const res = await fetch(url, {
     method: "POST",
     headers: {

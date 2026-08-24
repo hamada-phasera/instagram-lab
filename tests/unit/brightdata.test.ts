@@ -60,6 +60,37 @@ describe("fetchDataset", () => {
     expect(init?.body).toBe(JSON.stringify(payload));
   });
 
+  it("appends discovery queryParams to the trigger URL (hashtag flow)", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(jsonResponse(200, { snapshot_id: "snap_h" }));
+
+    await fetchDataset({
+      datasetId: "ds_posts",
+      payload: { input: [{ hashtag: "ブリトー", num_of_posts: 20 }] },
+      queryParams: { type: "discover_new", discover_by: "hashtag" },
+    });
+
+    const [url] = fetchSpy.mock.calls[0];
+    expect(String(url)).toContain("type=discover_new");
+    expect(String(url)).toContain("discover_by=hashtag");
+    // Existing params must survive the append.
+    expect(String(url)).toContain("dataset_id=ds_posts");
+    expect(String(url)).toContain("format=json");
+  });
+
+  it("omits discovery params from the trigger URL when queryParams is absent", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(jsonResponse(200, { snapshot_id: "snap_p" }));
+
+    await fetchDataset({ datasetId: "ds_1", payload: {} });
+
+    const [url] = fetchSpy.mock.calls[0];
+    expect(String(url)).not.toContain("discover_by");
+    expect(String(url)).not.toContain("type=discover_new");
+  });
+
   it("throws BrightDataError on 401", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response("unauthorized", { status: 401 }),
@@ -207,6 +238,29 @@ describe("parsePosts", () => {
     const feed = posts.find((p) => p.type === "feed");
     expect(feed).toBeDefined();
     expect(feed!.account).toBe("veggie_cafe_jp");
+  });
+
+  it("normalizes hashtag-discovered rows without followers (falls back to 0)", () => {
+    // Hashtag discovery returns flat post-level rows with no profile-level
+    // followers count; missing followers must coerce to 0, not drop the row.
+    const posts = parsePosts([
+      {
+        url: "https://www.instagram.com/p/burrito1/",
+        user_posted: "some_taqueria",
+        content_type: "photo",
+        likes: 320,
+        num_comments: 12,
+        description: "限定ブリトー #ブリトー #メキシコ料理",
+        date_posted: "2026-08-20T08:00:00.000Z",
+        display_url: "https://example.com/burrito1.jpg",
+      },
+    ]);
+
+    expect(posts.length).toBe(1);
+    expect(posts[0].followers).toBe(0);
+    expect(posts[0].account).toBe("some_taqueria");
+    expect(posts[0].hashtags).toEqual(["#ブリトー", "#メキシコ料理"]);
+    expect(posts[0].date).toBe("2026-08-20");
   });
 });
 
