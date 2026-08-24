@@ -11,8 +11,13 @@
  * Established so far (2026-08-24, real 400 responses):
  *   - posts dataset gd_lk5ns7kz21pck8jpis + discover_by=hashtag
  *     → "Incorrect discovery collector id Available types: url"
- *     (posts discovery supports URL input only — so we feed it the hashtag
- *      *explore URL* instead of a bare tag)
+ *   - posts dataset + discover_by=url + explore/tags URL
+ *     → validation reject: url must match a profile-URL pattern
+ *       (input schema: url / num_of_posts / start_date / end_date / post_type)
+ *   - profile-discover gd_l1vikfch901nx3by4 + explore/tags URL
+ *     → trigger accepted but the job returns an error row (not a profile)
+ *   ⇒ neither general dataset does hashtags; use the dedicated hashtag
+ *     scraper's dataset id from the Bright Data console via --dataset.
  *
  * NEVER runs implicitly: requires --yes AND BRIGHT_DATA_API_KEY in
  * .env.local (or the environment). Per CLAUDE.md, a human runs this — CI
@@ -83,18 +88,24 @@ function buildCandidates(tag, n) {
       input: { url: tagUrl },
     },
   ];
-  // Manual override narrows to exactly one attempt.
+  // Manual override narrows to a targeted sweep over one dataset. With
+  // --discover-by it is a single attempt; without, it walks the likely
+  // input shapes for a dedicated hashtag scraper (each 400 is free).
   const dsOverride = arg("dataset", "");
   if (dsOverride) {
-    const by = arg("discover-by", "url");
-    return [
-      {
-        label: `manual: ${dsOverride} discover_by=${by}`,
-        dataset: dsOverride,
-        qp: { type: "discover_new", discover_by: by },
-        input: by === "hashtag" ? { hashtag: tag, num_of_posts: n } : { url: tagUrl, num_of_posts: n },
-      },
-    ];
+    const by = arg("discover-by", "");
+    const shapes = {
+      hashtag: { hashtag: tag, num_of_posts: n },
+      keyword: { keyword: tag, num_of_posts: n },
+      url: { url: tagUrl, num_of_posts: n },
+    };
+    const order = by ? [by] : ["hashtag", "keyword", "url"];
+    return order.map((b) => ({
+      label: `manual: ${dsOverride} discover_by=${b}`,
+      dataset: dsOverride,
+      qp: { type: "discover_new", discover_by: b },
+      input: shapes[b] ?? shapes.hashtag,
+    }));
   }
   return candidates;
 }
@@ -213,6 +224,15 @@ async function main() {
   console.log(`Saved raw snapshot → ${outPath}`);
   console.log(`Winning format: ${winner.label}`);
   console.log(`Records: ${records.length}`);
+  // Error rows carry Bright Data diagnostics (not scraped content) — safe
+  // and necessary to print, otherwise a failed job looks like a success.
+  const errorRows = records.filter((r) => r && typeof r === "object" && ("error" in r || "error_code" in r));
+  if (errorRows.length > 0) {
+    console.log(`Error rows: ${errorRows.length}/${records.length}`);
+    for (const r of errorRows.slice(0, 5)) {
+      console.log(`  error_code=${String(r.error_code ?? "")} error=${String(r.error ?? "").slice(0, 300)}`);
+    }
+  }
   const keyCounts = new Map();
   for (const r of records.slice(0, 50)) {
     if (r && typeof r === "object") {
