@@ -1,13 +1,14 @@
 /**
  * Genre × seed mapping for Instagram trend discovery.
  *
- * Two collection modes, both batch-triggered from `/collect`:
- *   - **hashtag discovery** (primary for genre-crossing): the Instagram
- *     posts dataset triggered with `type=discover_new&discover_by=hashtag`
- *     (`BRIGHT_DATA_DATASET_HASHTAG`). Each hashtag in `hashtags` becomes
- *     one discovery input.
- *   - **account discovery**: `instagram-posts-discover-by-url`
+ * Two collection modes, batch-triggered from `/collect`:
+ *   - **account discovery** (primary): `instagram-posts-discover-by-url`
  *     (`BRIGHT_DATA_DATASET_DISCOVER`), ~12 recent posts per profile URL.
+ *   - **hashtag discovery** (dormant): empirically unavailable on this
+ *     account's Bright Data datasets (2026-08-24 smoke test — see
+ *     scripts/smoke-hashtag.mjs header). The UI disables the mode until a
+ *     dedicated hashtag scraper's dataset id is set in
+ *     `BRIGHT_DATA_DATASET_HASHTAG`; `hashtags` stays display-only.
  *
  * `/trending` ranks the union by EPH/reach/genre-rank. Note: hashtag-
  * discovered rows usually lack `followers`, so their reach_proxy falls to 0
@@ -32,7 +33,10 @@ export const GENRES: Genre[] = [
   {
     name: "メキシカン",
     note: "ブリトー・タコス等のメキシカン（FRIJOLES のホームジャンル）",
-    accounts: [],
+    // Verified official handles (2026-08-24, cross-checked against each
+    // brand's own site / listing): FRIJOLES 自社（ベンチマーク）, タコベル日本,
+    // Guzman y Gomez 日本, 北出タコス グランスタ東京.
+    accounts: ["frijolesburritostacos", "tacobelljp", "guzmanygomezjp", "kitade_tacos_tokyost"],
     hashtags: ["#ブリトー", "#タコス", "#メキシコ料理", "#メキシカン", "#burrito"],
   },
   {

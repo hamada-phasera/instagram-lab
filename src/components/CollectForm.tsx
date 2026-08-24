@@ -20,13 +20,20 @@ interface CollectFormProps {
 /** Records fetched per hashtag-discovery input (post-paid cost control). */
 const HASHTAG_NUM_OF_POSTS = 20;
 
+/**
+ * Hashtag discovery is dormant: the 2026-08-24 smoke test showed neither
+ * general dataset supports it (scripts/smoke-hashtag.mjs header). Flip this
+ * once a dedicated hashtag scraper id is set in BRIGHT_DATA_DATASET_HASHTAG.
+ */
+const HASHTAG_MODE_AVAILABLE = false;
+
 export function CollectForm({ genres }: CollectFormProps) {
   const [genreName, setGenreName] = useState(genres[0]?.name ?? "");
   const genre = useMemo(
     () => genres.find((g) => g.name === genreName) ?? genres[0],
     [genres, genreName],
   );
-  const [mode, setMode] = useState<CollectMode>("hashtag");
+  const [mode, setMode] = useState<CollectMode>("discover");
   const [seedStates, setSeedStates] = useState<SeedState[]>([]);
   const [running, setRunning] = useState(false);
 
@@ -117,7 +124,12 @@ export function CollectForm({ genres }: CollectFormProps) {
         >
           <ModeButton
             active={mode === "hashtag"}
-            disabled={running}
+            disabled={running || !HASHTAG_MODE_AVAILABLE}
+            title={
+              HASHTAG_MODE_AVAILABLE
+                ? undefined
+                : "現在の Bright Data 購読ではハッシュタグ discovery が利用できません（実測済み）"
+            }
             onClick={() => {
               setMode("hashtag");
               setSeedStates([]);
@@ -196,11 +208,13 @@ export function CollectForm({ genres }: CollectFormProps) {
 function ModeButton({
   active,
   disabled,
+  title,
   onClick,
   children,
 }: {
   active: boolean;
   disabled: boolean;
+  title?: string;
   onClick: () => void;
   children: React.ReactNode;
 }) {
@@ -209,6 +223,7 @@ function ModeButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
+      title={title}
       aria-pressed={active}
       className={`px-3 py-1.5 transition disabled:cursor-not-allowed disabled:opacity-50 ${
         active
