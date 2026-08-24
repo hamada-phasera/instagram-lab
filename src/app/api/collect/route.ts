@@ -6,9 +6,13 @@
  *     type "discover" — profile username; uses BRIGHT_DATA_DATASET_DISCOVER
  *                       (instagram-posts-discover-by-url, gd_l1vikfch901nx3by4).
  *                       Payload is `{ input: [{ url, num_of_posts }] }`.
- *     type "hashtag" — legacy hashtag URL path (Bright Data has no public
- *                       hashtag scraper; kept only for previously-collected
- *                       data and direct experiments).
+ *     type "hashtag" — hashtag discovery; uses BRIGHT_DATA_DATASET_HASHTAG
+ *                       (the Instagram *posts* dataset triggered with
+ *                       `type=discover_new&discover_by=hashtag`). Payload is
+ *                       `{ input: [{ hashtag, num_of_posts }] }` (bare tag,
+ *                       no `#`). Hashtag-discovered rows usually lack
+ *                       `followers` (normalized to 0 → reach_proxy 0, so
+ *                       scoring leans on EPH + genre rank for these).
  *     type "posts"/"reels"/"comments" — kept for backward compat / direct
  *                                       collect-by-URL flows.
  *   503 when env missing (test/no-key envs never hit the post-paid API).
@@ -80,6 +84,7 @@ export async function POST(req: Request): Promise<NextResponse> {
     const triggerRes = await fetchDataset({
       datasetId,
       payload: buildInput(type, target, numOfPosts ?? DEFAULT_NUM_OF_POSTS),
+      queryParams: buildQueryParams(type),
     });
     const snapshotId = extractSnapshotId(triggerRes);
     const raw = snapshotId ? await pollSnapshot(snapshotId) : triggerRes;
@@ -155,13 +160,15 @@ function matchKind(name: string): CollectKind | "trending" | null {
     : null;
 }
 
-function buildInput(type: CollectKind, target: string, _numOfPosts: number): unknown {
+function buildInput(type: CollectKind, target: string, numOfPosts: number): unknown {
   const base = "https://www.instagram.com";
   const profileUrl = `${base}/${target.replace(/^@/, "")}/`;
   // NOTE: the discover-by-url dataset (gd_l1vikfch901nx3by4) rejects a
   // `num_of_posts` field ("should not contain a num_of_posts field") and
   // returns a fixed ~12 recent posts per profile. To collect more, add more
   // seed accounts rather than trying to deepen a single profile.
+  // Hashtag discovery, in contrast, DOES take `num_of_posts` — it bounds the
+  // per-tag record count (post-paid cost control).
   switch (type) {
     case "discover":
     case "posts":
@@ -169,6 +176,19 @@ function buildInput(type: CollectKind, target: string, _numOfPosts: number): unk
     case "comments":
       return { input: [{ url: profileUrl }] };
     case "hashtag":
-      return { input: [{ url: `${base}/explore/tags/${target.replace(/^#/, "")}/` }] };
+      return {
+        input: [{ hashtag: target.replace(/^#/, ""), num_of_posts: numOfPosts }],
+      };
   }
+}
+
+/**
+ * Discovery phases need extra trigger query params; plain collect-by-URL
+ * types do not. Kept as a pure map so tests can assert the wire format.
+ */
+function buildQueryParams(type: CollectKind): Record<string, string> | undefined {
+  if (type === "hashtag") {
+    return { type: "discover_new", discover_by: "hashtag" };
+  }
+  return undefined;
 }

@@ -1,17 +1,20 @@
 /**
- * Genre × seed-account mapping for Instagram trend discovery.
+ * Genre × seed mapping for Instagram trend discovery.
  *
- * Bright Data does NOT expose a hashtag discovery scraper in its public docs.
- * The available endpoint is `instagram-posts-discover-by-url` which takes
- * **profile URLs** as input and returns recent posts from each profile.
+ * Two collection modes, both batch-triggered from `/collect`:
+ *   - **hashtag discovery** (primary for genre-crossing): the Instagram
+ *     posts dataset triggered with `type=discover_new&discover_by=hashtag`
+ *     (`BRIGHT_DATA_DATASET_HASHTAG`). Each hashtag in `hashtags` becomes
+ *     one discovery input.
+ *   - **account discovery**: `instagram-posts-discover-by-url`
+ *     (`BRIGHT_DATA_DATASET_DISCOVER`), ~12 recent posts per profile URL.
  *
- * MVP strategy: per genre, curate ~5 representative accounts. `/collect`
- * batch-triggers discover-by-url for each account, then `/trending` ranks
- * the union by EPH/reach/genre-rank.
+ * `/trending` ranks the union by EPH/reach/genre-rank. Note: hashtag-
+ * discovered rows usually lack `followers`, so their reach_proxy falls to 0
+ * and scoring leans on EPH + genre rank.
  *
- * Edit per project: replace `accounts` with the brands/influencers you
- * actually want to discover within each genre. `hashtags` is kept for UI
- * display only (not used to drive collection).
+ * Edit per project: replace `hashtags`/`accounts` with the tags and
+ * brands you actually want to discover within each genre.
  */
 
 export interface Genre {
@@ -19,13 +22,19 @@ export interface Genre {
   name: string;
   /** Instagram usernames (without @). Profile URLs are derived: https://www.instagram.com/{username}/ */
   accounts: string[];
-  /** Display-only hashtags (formerly used to drive collection — now informational). */
+  /** Hashtags (with or without `#`) used as hashtag-discovery inputs. */
   hashtags: string[];
   /** One-line description shown in the UI. */
   note?: string;
 }
 
 export const GENRES: Genre[] = [
+  {
+    name: "メキシカン",
+    note: "ブリトー・タコス等のメキシカン（FRIJOLES のホームジャンル）",
+    accounts: [],
+    hashtags: ["#ブリトー", "#タコス", "#メキシコ料理", "#メキシカン", "#burrito"],
+  },
   {
     name: "飲食",
     note: "日本の飲食店（店紹介・グルメ発見系。レシピ動画メディアは除外）",
@@ -73,9 +82,10 @@ export function findGenreByAccount(username: string): Genre | undefined {
 }
 
 /**
- * Find the genre that owns the given hashtag (kept for compat with older
- * snapshots persisted with `source_hashtag`). Case-insensitive, ignores
- * leading `#`. Returns undefined when the hashtag is not registered.
+ * Find the genre that owns the given hashtag. Used both to route freshly
+ * hashtag-discovered posts and for older snapshots persisted with
+ * `source_hashtag`. Case-insensitive, ignores leading `#`. Returns
+ * undefined when the hashtag is not registered.
  */
 export function findGenreByHashtag(hashtag: string): Genre | undefined {
   const norm = hashtag.replace(/^#/, "").toLowerCase();
