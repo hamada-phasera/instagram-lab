@@ -27,6 +27,18 @@ export interface Genre {
 
 export const GENRES: Genre[] = [
   {
+    name: "ローカル・石巻",
+    note: "石巻圏のまちづくり・観光・ローカル系（「まちと人と」@machihito_info 案件のベンチマーク。詳細: docs/hashtag-strategy-machitohitoto.md）",
+    accounts: [
+      "machihito_info",
+      "visit_ishinomaki",
+      "ishinomakikawabei",
+      "fishermanjapan",
+      "ishinomaki_kyoryokutai",
+    ],
+    hashtags: ["#石巻", "#いしのまき", "#いしのまき日和", "#まちづくり", "#東北PR局"],
+  },
+  {
     name: "飲食",
     note: "日本の飲食店（店紹介・グルメ発見系。レシピ動画メディアは除外）",
     accounts: ["muni_gurume_japan", "tokyogourmet3", "ma_sa_cafe", "tokyo_highcosper_gourmet"],
